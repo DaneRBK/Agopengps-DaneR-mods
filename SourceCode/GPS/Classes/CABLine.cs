@@ -66,6 +66,7 @@ namespace AgOpenGPS
         private int counter2;
 
         private const double ObstacleFlagRadius = 1.0;
+        private const double ObstacleDetectionAheadMeters = 30.0;
         private bool isObstacleAvoidanceActive;
         private readonly List<XyCoord> obstacleAvoidancePath = new List<XyCoord>(64);
 
@@ -110,8 +111,8 @@ namespace AgOpenGPS
             double obstacleOffset = Math.Max(0.0, Properties.ToolSettings.Default.setVehicle_obstacleOffset);
             double defaultClearance = halfToolWidth + ObstacleFlagRadius + obstacleOffset;
             double steeringScanDistance = Math.Max(goalPointDistance * 3.0, defaultClearance + 8.0);
-            if (steeringScanDistance > 60.0) steeringScanDistance = 60.0;
-            double displayScanDistance = Math.Max(80.0, steeringScanDistance);
+            if (steeringScanDistance > ObstacleDetectionAheadMeters) steeringScanDistance = ObstacleDetectionAheadMeters;
+            double displayScanDistance = ObstacleDetectionAheadMeters;
 
             double strongestOffset = 0;
             double strongestInfluence = 0;
@@ -349,7 +350,7 @@ namespace AgOpenGPS
             double simNorthing = pivot.northing;
             double simHeading = pivot.heading;
             double step = 1.0;
-            double visibleDistance = 80.0;
+            double visibleDistance = ObstacleDetectionAheadMeters;
             double wheelbase = Math.Max(0.5, mf.vehicle.VehicleConfig.Wheelbase);
             double lookAhead = Math.Max(2.0, goalPointDistance);
 

@@ -17,6 +17,7 @@ namespace AgOpenGPS
         private const string ObstacleTypePole = "POLE";
         private const string ObstacleTypeHole = "HOLE";
         private const string ObstacleTypeHose = "HOSE";
+        private const double ObstacleMeasureAheadMeters = 30.0;
 
         private bool isObstacleTouchMode;
         private bool hasPendingObstacle;
@@ -61,9 +62,36 @@ namespace AgOpenGPS
                 return false;
             }
 
+            double heading = double.IsNaN(pivotAxlePos.heading) ? fixHeading : pivotAxlePos.heading;
+            if (isReverse)
+            {
+                heading += Math.PI;
+            }
+
+            double forwardEast = Math.Sin(heading);
+            double forwardNorth = Math.Cos(heading);
+
             for (int i = 0; i < flagPts.Count; i++)
             {
+                if (!TryParseObstacleTag(flagPts[i].notes, out _, out _, out _))
+                {
+                    continue;
+                }
+
+                double deltaEasting = flagPts[i].easting - tractorEasting;
+                double deltaNorthing = flagPts[i].northing - tractorNorthing;
+                double aheadMeters = (deltaEasting * forwardEast) + (deltaNorthing * forwardNorth);
+                if (aheadMeters < 0.0 || aheadMeters > ObstacleMeasureAheadMeters)
+                {
+                    continue;
+                }
+
                 double distance = GetObstacleDistance(flagPts[i], tractorEasting, tractorNorthing);
+                if (distance > ObstacleMeasureAheadMeters)
+                {
+                    continue;
+                }
+
                 if (distance < distanceMeters)
                 {
                     distanceMeters = distance;
@@ -232,7 +260,7 @@ namespace AgOpenGPS
         public void SetObstacleAlarmSettings(bool enabled, double distanceMeters)
         {
             isObstacleAlarmEnabled = enabled;
-            obstacleAlarmDistanceMeters = Math.Max(0.5, distanceMeters);
+            obstacleAlarmDistanceMeters = Math.Max(0.5, Math.Min(ObstacleMeasureAheadMeters, distanceMeters));
 
             if (enabled)
             {

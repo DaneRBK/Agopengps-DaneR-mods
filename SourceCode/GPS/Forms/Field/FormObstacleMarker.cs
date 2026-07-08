@@ -81,8 +81,8 @@ namespace AgOpenGPS
             btnAlarm.Click += (sender, e) => ToggleObstacleAlarm();
 
             Label lblAlarmDistance = MakeLabel("Alarm distance (m):", new Point(224, 319), new Size(170, 34));
-            nudAlarmDistance = MakeNumeric(new Point(398, 314), 10M, 200M);
-            nudAlarmDistance.Value = (decimal)Math.Max(0.5, mf?.ObstacleAlarmDistanceMeters ?? 10.0);
+            nudAlarmDistance = MakeNumeric(new Point(398, 314), 10M, 30M);
+            nudAlarmDistance.Value = (decimal)Math.Max(0.5, Math.Min(30.0, mf?.ObstacleAlarmDistanceMeters ?? 10.0));
             nudAlarmDistance.ValueChanged += (sender, e) => UpdateObstacleAlarmDistance();
 
             Button btnSave = MakeActionButton("Save", new Point(170, 382), Color.FromArgb(52, 199, 89));
