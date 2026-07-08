@@ -529,7 +529,7 @@ namespace AgOpenGPS
                 case ParameterWasZero:
                     if (autoWasStep == 0 || !wasConfidenceReady) return;
                     parameterRollbackValues[key] = settings.setAS_wasOffset;
-                    settings.setAS_wasOffset += autoWasStep;
+                    if (mf?.smartWAS?.QueueWasZeroCorrection(autoWasStep) != true) return;
                     break;
 
                 default:

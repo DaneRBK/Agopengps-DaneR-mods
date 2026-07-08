@@ -25,6 +25,7 @@ namespace AgOpenGPS
         private const double AUTOSTEER_START_DELAY_SECONDS = 10.0;
         private const double AUTO_APPLY_MIN_CONFIDENCE = 75.0;
         private const int AUTO_APPLY_MIN_SAMPLES = 1000;
+        private const double AUTO_APPLY_DEGREES_PER_SECOND = 0.05;
 
         // Collected data
         private readonly List<double> steerAngleHistory = new List<double>();
@@ -41,6 +42,9 @@ namespace AgOpenGPS
         private DateTime autoSteerActivatedUtc = DateTime.MinValue;
         private bool hasPendingAutoCorrection;
         private int pendingAutoCorrectionCounts;
+        private int activeAutoCorrectionTotalCounts;
+        private int activeAutoCorrectionAppliedCounts;
+        private DateTime lastAutoCorrectionApplyUtc = DateTime.MinValue;
         private int lastAutoCorrectionCounts;
         private string autoZeroStatus = "Waiting.";
 
@@ -107,6 +111,9 @@ namespace AgOpenGPS
                 autoSteerActivatedUtc = DateTime.MinValue;
                 hasPendingAutoCorrection = false;
                 pendingAutoCorrectionCounts = 0;
+                activeAutoCorrectionTotalCounts = 0;
+                activeAutoCorrectionAppliedCounts = 0;
+                lastAutoCorrectionApplyUtc = DateTime.MinValue;
                 lastAutoCorrectionCounts = 0;
                 autoZeroStatus = "Waiting.";
             }
@@ -140,6 +147,12 @@ namespace AgOpenGPS
             // Check collection conditions
             if (!IsCollecting) return;
             UpdateAutosteerState();
+            if (hasPendingAutoCorrection)
+            {
+                TryApplyPendingAutomaticWasZero();
+                return;
+            }
+
             if (!mf.isBtnAutoSteerOn)
             {
                 return;
@@ -195,6 +208,11 @@ namespace AgOpenGPS
         {
             if (!IsCollecting) return;
 
+            if (hasPendingAutoCorrection)
+            {
+                TryApplyPendingAutomaticWasZero();
+            }
+
             if (mf.isBtnAutoSteerOn)
             {
                 if (!wasAutoSteerOn)
@@ -238,8 +256,7 @@ namespace AgOpenGPS
             int absCounts = Math.Abs(recommendedCounts);
             if (absCounts <= 1) return 0;
 
-            int maxStep = GetAdaptiveAutoStepLimit(absCounts);
-            return Math.Sign(recommendedCounts) * Math.Min(absCounts, maxStep);
+            return recommendedCounts;
         }
 
         /// <summary>
@@ -293,6 +310,15 @@ namespace AgOpenGPS
                 autoZeroStatus = "Auto WAS off.";
                 hasPendingAutoCorrection = false;
                 pendingAutoCorrectionCounts = 0;
+                activeAutoCorrectionTotalCounts = 0;
+                activeAutoCorrectionAppliedCounts = 0;
+                lastAutoCorrectionApplyUtc = DateTime.MinValue;
+                return;
+            }
+
+            if (hasPendingAutoCorrection)
+            {
+                TryApplyPendingAutomaticWasZero();
                 return;
             }
 
@@ -342,8 +368,38 @@ namespace AgOpenGPS
 
             hasPendingAutoCorrection = true;
             pendingAutoCorrectionCounts = stepCounts;
-            autoZeroStatus = $"Ready {stepCounts:+0;-0;0} counts. Applying.";
+            activeAutoCorrectionTotalCounts = stepCounts;
+            activeAutoCorrectionAppliedCounts = 0;
+            lastAutoCorrectionApplyUtc = DateTime.MinValue;
+            ClearCollectedSamples();
+            autoZeroStatus = $"Soft applying {stepCounts:+0;-0;0} counts.";
             TryApplyPendingAutomaticWasZero();
+        }
+
+        public bool QueueWasZeroCorrection(int correctionCounts)
+        {
+            lock (dataLock)
+            {
+                if (correctionCounts == 0) return false;
+
+                var settings = Properties.VehicleSettings.Default;
+                int proposedOffset = settings.setAS_wasOffset + correctionCounts;
+                if (Math.Abs(proposedOffset) > settings.setAS_autoWasZeroMaxTotalCounts)
+                {
+                    autoZeroStatus = "Auto WAS limit reached.";
+                    return false;
+                }
+
+                hasPendingAutoCorrection = true;
+                pendingAutoCorrectionCounts = correctionCounts;
+                activeAutoCorrectionTotalCounts = correctionCounts;
+                activeAutoCorrectionAppliedCounts = 0;
+                lastAutoCorrectionApplyUtc = DateTime.MinValue;
+                ClearCollectedSamples();
+                autoZeroStatus = $"Soft applying {correctionCounts:+0;-0;0} counts.";
+                TryApplyPendingAutomaticWasZero();
+                return true;
+            }
         }
 
         private void TryApplyPendingAutomaticWasZero()
@@ -355,21 +411,54 @@ namespace AgOpenGPS
             }
             if (!hasPendingAutoCorrection) return;
 
-            int stepCounts = pendingAutoCorrectionCounts;
+            DateTime now = DateTime.UtcNow;
+            if (lastAutoCorrectionApplyUtc != DateTime.MinValue
+                && (now - lastAutoCorrectionApplyUtc).TotalSeconds < 1.0)
+            {
+                autoZeroStatus = $"Soft applying {activeAutoCorrectionAppliedCounts:+0;-0;0}/{activeAutoCorrectionTotalCounts:+0;-0;0} counts.";
+                return;
+            }
+
             int countsPerDegree = Math.Max(1, (int)settings.setAS_countsPerDegree);
+            int maxStepCounts = Math.Max(1, (int)Math.Round(countsPerDegree * AUTO_APPLY_DEGREES_PER_SECOND));
+            int stepCounts = Math.Sign(pendingAutoCorrectionCounts) * Math.Min(Math.Abs(pendingAutoCorrectionCounts), maxStepCounts);
             int proposedOffset = settings.setAS_wasOffset + stepCounts;
             double appliedConfidence = confidenceLevel;
+
+            if (Math.Abs(proposedOffset) > settings.setAS_autoWasZeroMaxTotalCounts)
+            {
+                autoZeroStatus = "Auto WAS limit reached.";
+                hasPendingAutoCorrection = false;
+                pendingAutoCorrectionCounts = 0;
+                activeAutoCorrectionTotalCounts = 0;
+                activeAutoCorrectionAppliedCounts = 0;
+                lastAutoCorrectionApplyUtc = DateTime.MinValue;
+                Log.EventWriter($"Smart WAS Auto: soft apply rejected by total limit at WAS zero {proposedOffset}");
+                return;
+            }
 
             settings.setAS_wasOffset = proposedOffset;
             settings.Save();
             mf.SendSettings();
 
-            lastAutoCorrectionCounts = stepCounts;
-            hasPendingAutoCorrection = false;
-            pendingAutoCorrectionCounts = 0;
-            ClearCollectedSamples();
-            autoZeroStatus = $"Auto corrected {stepCounts:+0;-0;0} counts, WAS zero {proposedOffset}.";
-            Log.EventWriter($"Smart WAS Auto: corrected {stepCounts} counts, new WAS zero {proposedOffset}, confidence {appliedConfidence:F0}%");
+            pendingAutoCorrectionCounts -= stepCounts;
+            activeAutoCorrectionAppliedCounts += stepCounts;
+            lastAutoCorrectionCounts = activeAutoCorrectionAppliedCounts;
+            lastAutoCorrectionApplyUtc = now;
+
+            if (pendingAutoCorrectionCounts == 0)
+            {
+                int totalCounts = activeAutoCorrectionAppliedCounts;
+                hasPendingAutoCorrection = false;
+                activeAutoCorrectionTotalCounts = 0;
+                activeAutoCorrectionAppliedCounts = 0;
+                lastAutoCorrectionApplyUtc = DateTime.MinValue;
+                autoZeroStatus = $"Auto corrected {totalCounts:+0;-0;0} counts, WAS zero {proposedOffset}.";
+                Log.EventWriter($"Smart WAS Auto: soft corrected {totalCounts} counts, new WAS zero {proposedOffset}, confidence {appliedConfidence:F0}%");
+                return;
+            }
+
+            autoZeroStatus = $"Soft applied {stepCounts:+0;-0;0}, remaining {pendingAutoCorrectionCounts:+0;-0;0} counts.";
         }
 
         private double GetRequiredAutoConfidence()
