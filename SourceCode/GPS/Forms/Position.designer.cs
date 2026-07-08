@@ -1133,8 +1133,31 @@ namespace AgOpenGPS
                                     sounds.isBoundAlarming = true;
                                 }
 
-                            //if we are close enough to pattern, trigger.
-                            if ((distancePivotToTurnLine <= 1.0) && (distancePivotToTurnLine >= 0) && !yt.isYouTurnTriggered)
+                            bool shouldTriggerYouTurn = (distancePivotToTurnLine <= 1.0) && (distancePivotToTurnLine >= 0);
+                            if (!shouldTriggerYouTurn && yt.ytList.Count > 8)
+                            {
+                                vec3 startPoint = yt.ytList[2];
+                                vec3 pathPoint = yt.ytList[Math.Min(yt.ytList.Count - 1, 8)];
+                                double pathEast = pathPoint.easting - startPoint.easting;
+                                double pathNorth = pathPoint.northing - startPoint.northing;
+                                double pathLength = Math.Sqrt((pathEast * pathEast) + (pathNorth * pathNorth));
+
+                                if (pathLength > 0.001)
+                                {
+                                    double pivotEast = pivotAxlePos.easting - startPoint.easting;
+                                    double pivotNorth = pivotAxlePos.northing - startPoint.northing;
+                                    double progressAlongTurn = ((pivotEast * pathEast) + (pivotNorth * pathNorth)) / pathLength;
+                                    double lateralFromTurn = Math.Abs(((pivotEast * pathNorth) - (pivotNorth * pathEast)) / pathLength);
+                                    double triggerLength = Math.Min(15.0, Math.Max(8.0, vehicle.goalDistance + 2.0));
+
+                                    shouldTriggerYouTurn = progressAlongTurn >= 0.0
+                                        && progressAlongTurn <= triggerLength
+                                        && lateralFromTurn <= 3.5;
+                                }
+                            }
+
+                            //if we are close enough to the pattern start gate, trigger.
+                            if (shouldTriggerYouTurn && !yt.isYouTurnTriggered)
                             {
                                 yt.YouTurnTrigger();
                                 sounds.isBoundAlarming = false;
