@@ -414,15 +414,19 @@ namespace AgOpenGPS
                     {
                         if (flagNumberPicked > 0)
                         {
-                            GL.LineWidth(ABLine.lineWidth);
-                            GL.Enable(EnableCap.LineStipple);
-                            GL.LineStipple(1, 0x0707);
-                            GL.Begin(PrimitiveType.Lines);
-                            GL.Color3(0.930f, 0.72f, 0.32f);
-                            GL.Vertex3(pivotAxlePos.easting, pivotAxlePos.northing, 0);
-                            GL.Vertex3(flagPts[flagNumberPicked - 1].easting, flagPts[flagNumberPicked - 1].northing, 0);
-                            GL.End();
-                            GL.Disable(EnableCap.LineStipple);
+                            CFlag selectedFlag = flagPts[flagNumberPicked - 1];
+                            if (!TryParseObstacleTag(selectedFlag.notes, out _, out _, out _))
+                            {
+                                GL.LineWidth(ABLine.lineWidth);
+                                GL.Enable(EnableCap.LineStipple);
+                                GL.LineStipple(1, 0x0707);
+                                GL.Begin(PrimitiveType.Lines);
+                                GL.Color3(0.930f, 0.72f, 0.32f);
+                                GL.Vertex3(pivotAxlePos.easting, pivotAxlePos.northing, 0);
+                                GL.Vertex3(selectedFlag.easting, selectedFlag.northing, 0);
+                                GL.End();
+                                GL.Disable(EnableCap.LineStipple);
+                            }
                         }
                     }
                     catch { }

@@ -475,7 +475,7 @@ namespace AgOpenGPS
 
             if (showMessage)
             {
-                TimedMessageBox(3500, "Obstacle", "Move by finger, then Save " + GetObstacleRelativeText(easting, northing));
+                TimedMessageBox(3500, "Obstacle", "Move by finger, then Save");
             }
 
             oglMain.Refresh();
@@ -485,11 +485,6 @@ namespace AgOpenGPS
         {
             obstacleType = NormalizeObstacleType(obstacleType);
             double shapeHeading = GetObstacleShapeHeading(obstacleType);
-            double relativeHeading = fixHeading;
-            double deltaEasting = easting - pn.fix.easting;
-            double deltaNorthing = northing - pn.fix.northing;
-            double forwardMeters = (deltaEasting * Math.Sin(relativeHeading)) + (deltaNorthing * Math.Cos(relativeHeading));
-            double rightMeters = (deltaEasting * Math.Sin(relativeHeading + glm.PIBy2)) + (deltaNorthing * Math.Cos(relativeHeading + glm.PIBy2));
 
             Wgs84 latLon = AppModel.LocalPlane.ConvertGeoCoordToWgs84(new GeoCoord(northing, easting));
             int nextFlag = flagPts.Count + 1;
@@ -501,8 +496,7 @@ namespace AgOpenGPS
 
             widthMeters = obstacleType == ObstacleTypePole ? 0.3 : Math.Max(0.05, widthMeters);
             lengthMeters = obstacleType == ObstacleTypePole ? 0.3 : Math.Max(0.05, lengthMeters);
-            string relativeText = FormatObstacleRelativeText(forwardMeters, rightMeters);
-            string flagNotesWithDistance = flagNotes + " " + relativeText + " " + BuildObstacleTag(obstacleType, widthMeters, lengthMeters);
+            string flagNotesWithTag = flagNotes + " " + BuildObstacleTag(obstacleType, widthMeters, lengthMeters);
 
             CFlag flagPt = new CFlag(
                 latLon.Latitude,
@@ -512,7 +506,7 @@ namespace AgOpenGPS
                 shapeHeading,
                 0,
                 nextFlag,
-                flagNotesWithDistance);
+                flagNotesWithTag);
 
             flagPts.Add(flagPt);
             flagPts = FlagsFiles.DeduplicateFlags(flagPts);
@@ -520,31 +514,7 @@ namespace AgOpenGPS
             flagNumberPicked = nextFlag;
             oglMain.Refresh();
 
-            TimedMessageBox(3500, "Obstacle", flagNotes + " saved " + relativeText);
-        }
-
-        private string FormatObstacleRelativeText(double forwardMeters, double rightMeters)
-        {
-            string forwardText = forwardMeters >= 0.0
-                ? "F " + forwardMeters.ToString("N1", CultureInfo.CurrentCulture) + "m"
-                : "B " + Math.Abs(forwardMeters).ToString("N1", CultureInfo.CurrentCulture) + "m";
-
-            string sideText = rightMeters >= 0.0
-                ? "R " + rightMeters.ToString("N1", CultureInfo.CurrentCulture) + "m"
-                : "L " + Math.Abs(rightMeters).ToString("N1", CultureInfo.CurrentCulture) + "m";
-
-            return "(" + forwardText + " " + sideText + ")";
-        }
-
-        private string GetObstacleRelativeText(double easting, double northing)
-        {
-            double heading = fixHeading;
-            double deltaEasting = easting - pn.fix.easting;
-            double deltaNorthing = northing - pn.fix.northing;
-            double forwardMeters = (deltaEasting * Math.Sin(heading)) + (deltaNorthing * Math.Cos(heading));
-            double rightMeters = (deltaEasting * Math.Sin(heading + glm.PIBy2)) + (deltaNorthing * Math.Cos(heading + glm.PIBy2));
-
-            return FormatObstacleRelativeText(forwardMeters, rightMeters);
+            TimedMessageBox(3500, "Obstacle", flagNotes + " saved");
         }
 
         private string NormalizeObstacleType(string obstacleType)
@@ -812,7 +782,7 @@ namespace AgOpenGPS
             font.DrawText3D(
                 pendingObstacleEasting,
                 pendingObstacleNorthing,
-                "! " + StripObstacleTag(pendingObstacleNotes) + " " + GetObstacleRelativeText(pendingObstacleEasting, pendingObstacleNorthing),
+                "! " + StripObstacleTag(pendingObstacleNotes),
                 camHeading);
         }
 
