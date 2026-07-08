@@ -342,7 +342,8 @@ namespace AgOpenGPS
 
             hasPendingAutoCorrection = true;
             pendingAutoCorrectionCounts = stepCounts;
-            autoZeroStatus = $"Ready {stepCounts:+0;-0;0} counts. Will apply when autosteer turns off.";
+            autoZeroStatus = $"Ready {stepCounts:+0;-0;0} counts. Applying.";
+            TryApplyPendingAutomaticWasZero();
         }
 
         private void TryApplyPendingAutomaticWasZero()

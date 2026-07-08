@@ -240,6 +240,7 @@ namespace AgOpenGPS
 
             if (settings.setAS_autoWasZeroEnabled)
             {
+                mf?.smartWAS?.Reset();
                 mf?.smartWAS?.Start();
             }
             else
