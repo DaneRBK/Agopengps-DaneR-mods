@@ -1133,7 +1133,8 @@ namespace AgOpenGPS
                                     sounds.isBoundAlarming = true;
                                 }
 
-                            bool shouldTriggerYouTurn = (distancePivotToTurnLine <= 1.0) && (distancePivotToTurnLine >= 0);
+                            double directTriggerDistance = Math.Max(3.0, Math.Min(6.0, tool.width * 0.6));
+                            bool shouldTriggerYouTurn = (distancePivotToTurnLine <= directTriggerDistance) && (distancePivotToTurnLine >= 0);
                             if (!shouldTriggerYouTurn && yt.ytList.Count > 8)
                             {
                                 vec3 startPoint = yt.ytList[2];
@@ -1148,11 +1149,12 @@ namespace AgOpenGPS
                                     double pivotNorth = pivotAxlePos.northing - startPoint.northing;
                                     double progressAlongTurn = ((pivotEast * pathEast) + (pivotNorth * pathNorth)) / pathLength;
                                     double lateralFromTurn = Math.Abs(((pivotEast * pathNorth) - (pivotNorth * pathEast)) / pathLength);
-                                    double triggerLength = Math.Min(15.0, Math.Max(8.0, vehicle.goalDistance + 2.0));
+                                    double triggerLength = Math.Min(22.0, Math.Max(10.0, vehicle.goalDistance + 5.0));
+                                    double triggerWidth = Math.Max(6.0, tool.width * 0.75);
 
-                                    shouldTriggerYouTurn = progressAlongTurn >= 0.0
+                                    shouldTriggerYouTurn = progressAlongTurn >= -2.0
                                         && progressAlongTurn <= triggerLength
-                                        && lateralFromTurn <= 3.5;
+                                        && lateralFromTurn <= triggerWidth;
                                 }
                             }
 
