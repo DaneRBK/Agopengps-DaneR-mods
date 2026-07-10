@@ -235,17 +235,22 @@ namespace AgOpenGPS
 
                 for (int j = 0; j < mf.bnd.bndList.Count; j++)
                 {
-                    for (int i = 0; i < mf.bnd.bndList[j].fenceLine.Count; i++)
+                    int snapIndex = FindNearestBoundarySnapIndex(mf.bnd.bndList[j].fenceLine, pint);
+                    if (snapIndex > -1)
                     {
-                        double dist = ((pint.easting - mf.bnd.bndList[j].fenceLine[i].easting) * (pint.easting - mf.bnd.bndList[j].fenceLine[i].easting))
-                                        + ((pint.northing - mf.bnd.bndList[j].fenceLine[i].northing) * (pint.northing - mf.bnd.bndList[j].fenceLine[i].northing));
+                        double dist = GetDistanceSquared(pint, mf.bnd.bndList[j].fenceLine[snapIndex]);
                         if (dist < minDistA)
                         {
                             minDistA = dist;
                             bndSelect = j;
-                            start = i;
+                            start = snapIndex;
                         }
                     }
+                }
+
+                if (start != 99999)
+                {
+                    pint = new vec3(mf.bnd.bndList[bndSelect].fenceLine[start]);
                 }
 
                 isA = false;
@@ -255,15 +260,20 @@ namespace AgOpenGPS
                 double minDistA = double.MaxValue;
                 int j = bndSelect;
 
-                for (int i = 0; i < mf.bnd.bndList[j].fenceLine.Count; i++)
+                int snapIndex = FindNearestBoundarySnapIndex(mf.bnd.bndList[j].fenceLine, pint);
+                if (snapIndex > -1)
                 {
-                    double dist = ((pint.easting - mf.bnd.bndList[j].fenceLine[i].easting) * (pint.easting - mf.bnd.bndList[j].fenceLine[i].easting))
-                                    + ((pint.northing - mf.bnd.bndList[j].fenceLine[i].northing) * (pint.northing - mf.bnd.bndList[j].fenceLine[i].northing));
+                    double dist = GetDistanceSquared(pint, mf.bnd.bndList[j].fenceLine[snapIndex]);
                     if (dist < minDistA)
                     {
                         minDistA = dist;
-                        end = i;
+                        end = snapIndex;
                     }
+                }
+
+                if (end != 99999)
+                {
+                    pint = new vec3(mf.bnd.bndList[j].fenceLine[end]);
                 }
 
                 isA = true;
@@ -869,6 +879,69 @@ namespace AgOpenGPS
             AddBoundarySegment(secondLine.b_point, firstLine.a_point, fenceLine);
 
             return mf.bnd.bndList[0].hdLine.Count > 3;
+        }
+
+        private int FindNearestBoundarySnapIndex(List<vec3> fenceLine, vec3 clickPoint)
+        {
+            if (fenceLine == null || fenceLine.Count == 0) return -1;
+
+            int nearestIndex = 0;
+            double nearestDistance = double.MaxValue;
+
+            for (int i = 0; i < fenceLine.Count; i++)
+            {
+                double distance = GetDistanceSquared(clickPoint, fenceLine[i]);
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearestIndex = i;
+                }
+            }
+
+            int nearestCornerIndex = -1;
+            double nearestCornerDistance = double.MaxValue;
+            const double cornerAngle = 0.45;
+
+            for (int i = 0; i < fenceLine.Count; i++)
+            {
+                int previousIndex = NormalizeBoundaryIndex(i - 4, fenceLine.Count);
+                int nextIndex = NormalizeBoundaryIndex(i + 4, fenceLine.Count);
+
+                double firstEasting = fenceLine[i].easting - fenceLine[previousIndex].easting;
+                double firstNorthing = fenceLine[i].northing - fenceLine[previousIndex].northing;
+                double secondEasting = fenceLine[nextIndex].easting - fenceLine[i].easting;
+                double secondNorthing = fenceLine[nextIndex].northing - fenceLine[i].northing;
+
+                double firstLength = Math.Sqrt((firstEasting * firstEasting) + (firstNorthing * firstNorthing));
+                double secondLength = Math.Sqrt((secondEasting * secondEasting) + (secondNorthing * secondNorthing));
+                if (firstLength < 0.1 || secondLength < 0.1) continue;
+
+                double cross = (firstEasting * secondNorthing) - (firstNorthing * secondEasting);
+                double dot = (firstEasting * secondEasting) + (firstNorthing * secondNorthing);
+                double angle = Math.Abs(Math.Atan2(cross, dot));
+                if (angle < cornerAngle) continue;
+
+                double distance = GetDistanceSquared(clickPoint, fenceLine[i]);
+                if (distance < nearestCornerDistance)
+                {
+                    nearestCornerDistance = distance;
+                    nearestCornerIndex = i;
+                }
+            }
+
+            const double cornerSnapDistance = 20;
+            if (nearestCornerIndex > -1 && nearestCornerDistance <= cornerSnapDistance * cornerSnapDistance)
+            {
+                return nearestCornerIndex;
+            }
+
+            return nearestIndex;
+        }
+
+        private double GetDistanceSquared(vec3 firstPoint, vec3 secondPoint)
+        {
+            return ((firstPoint.easting - secondPoint.easting) * (firstPoint.easting - secondPoint.easting)) +
+                ((firstPoint.northing - secondPoint.northing) * (firstPoint.northing - secondPoint.northing));
         }
 
         private void AddHeadPathBetweenBoundaryEnds(CHeadPath headPath, vec3 startBoundary, vec3 endBoundary)
