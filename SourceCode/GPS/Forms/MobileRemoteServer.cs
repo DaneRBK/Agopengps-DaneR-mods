@@ -177,12 +177,12 @@ namespace AgOpenGPS
                     break;
 
                 case "nudge_center":
-                case "nudge_reset":
-                    if (trk.idx > -1) trk.NudgeDistanceReset();
-                    break;
-
                 case "snap_to_pivot":
                     if (trk.idx > -1) trk.SnapToPivot();
+                    break;
+
+                case "nudge_reset":
+                    if (trk.idx > -1) trk.NudgeDistanceReset();
                     break;
 
                 case "manual_sections":
