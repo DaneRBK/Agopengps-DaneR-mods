@@ -954,20 +954,8 @@ namespace AgOpenGPS
                 ? headPath.lineEndIndex
                 : FindClosestTrackPoint(headPath.trackPts, endBoundary);
 
-            if (startIndex <= endIndex)
-            {
-                for (int i = startIndex; i <= endIndex; i++)
-                {
-                    AddHeadlandPoint(headPath.trackPts[i]);
-                }
-            }
-            else
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
-                    AddHeadlandPoint(headPath.trackPts[i]);
-                }
-            }
+            AddHeadlandPoint(headPath.trackPts[startIndex]);
+            AddHeadlandPoint(headPath.trackPts[endIndex]);
         }
 
         private void AddBoundarySegment(int startIndex, int endIndex, List<vec3> fenceLine)
