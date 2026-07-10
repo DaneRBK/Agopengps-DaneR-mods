@@ -176,6 +176,10 @@ namespace AgOpenGPS
                     if (trk.idx > -1) trk.NudgeTrack((double)Properties.ToolSettings.Default.setAS_snapDistance * 0.01);
                     break;
 
+                case "nudge_center":
+                    if (trk.idx > -1) trk.SnapToPivot();
+                    break;
+
                 case "manual_sections":
                     btnSectionMasterManual.PerformClick();
                     break;
