@@ -375,6 +375,7 @@ namespace AgOpenGPS
             dest.setVehicle_slowSpeedCutoff = source.setVehicle_slowSpeedCutoff;
             dest.setVehicle_minCoverage = source.setVehicle_minCoverage;
             dest.setVehicle_hydraulicLiftLookAhead = source.setVehicle_hydraulicLiftLookAhead;
+            dest.setVehicle_hydraulicLiftLowerAfterEntry = source.setVehicle_hydraulicLiftLowerAfterEntry;
             dest.setF_isSteerWorkSwitchEnabled = source.setF_isSteerWorkSwitchEnabled;
         }
 

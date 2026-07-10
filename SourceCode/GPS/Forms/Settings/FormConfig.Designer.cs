@@ -366,6 +366,7 @@ namespace AgOpenGPS
             this.labelUser1 = new System.Windows.Forms.Label();
             this.labelGroupHyd = new System.Windows.Forms.GroupBox();
             this.labelPlantPop = new System.Windows.Forms.Label();
+            this.nudHydLiftLowerAfterEntry = new AgOpenGPS.NudlessNumericUpDown();
             this.nudHydLiftLookAhead = new AgOpenGPS.NudlessNumericUpDown();
             this.labelHydLiftSec = new System.Windows.Forms.Label();
             this.labelRaiseTime = new System.Windows.Forms.Label();
@@ -579,6 +580,7 @@ namespace AgOpenGPS
             this.tabAMachine.SuspendLayout();
             this.labelGroupHyd.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudHydLiftLookAhead)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudHydLiftLowerAfterEntry)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox6)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudLowerTime)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox7)).BeginInit();
@@ -6561,6 +6563,7 @@ namespace AgOpenGPS
             // 
             this.labelGroupHyd.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.labelGroupHyd.Controls.Add(this.labelPlantPop);
+            this.labelGroupHyd.Controls.Add(this.nudHydLiftLowerAfterEntry);
             this.labelGroupHyd.Controls.Add(this.nudHydLiftLookAhead);
             this.labelGroupHyd.Controls.Add(this.labelHydLiftSec);
             this.labelGroupHyd.Controls.Add(this.labelRaiseTime);
@@ -6583,12 +6586,36 @@ namespace AgOpenGPS
             // 
             this.labelPlantPop.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.labelPlantPop.ForeColor = System.Drawing.Color.Black;
-            this.labelPlantPop.Location = new System.Drawing.Point(226, 133);
+            this.labelPlantPop.Location = new System.Drawing.Point(30, 276);
             this.labelPlantPop.Name = "labelPlantPop";
-            this.labelPlantPop.Size = new System.Drawing.Size(110, 16);
+            this.labelPlantPop.Size = new System.Drawing.Size(151, 35);
             this.labelPlantPop.TabIndex = 480;
-            this.labelPlantPop.Text = "Plant Pop";
-            this.labelPlantPop.TextAlign = System.Drawing.ContentAlignment.TopRight;
+            this.labelPlantPop.Text = "Lower After Entry (m)";
+            this.labelPlantPop.TextAlign = System.Drawing.ContentAlignment.BottomCenter;
+            // 
+            // nudHydLiftLowerAfterEntry
+            // 
+            this.nudHydLiftLowerAfterEntry.BackColor = System.Drawing.Color.White;
+            this.nudHydLiftLowerAfterEntry.DecimalPlaces = 1;
+            this.nudHydLiftLowerAfterEntry.Font = new System.Drawing.Font("Tahoma", 27.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.nudHydLiftLowerAfterEntry.InterceptArrowKeys = false;
+            this.nudHydLiftLowerAfterEntry.Location = new System.Drawing.Point(34, 314);
+            this.nudHydLiftLowerAfterEntry.Maximum = new decimal(new int[] {
+            20,
+            0,
+            0,
+            0});
+            this.nudHydLiftLowerAfterEntry.Name = "nudHydLiftLowerAfterEntry";
+            this.nudHydLiftLowerAfterEntry.ReadOnly = true;
+            this.nudHydLiftLowerAfterEntry.Size = new System.Drawing.Size(148, 52);
+            this.nudHydLiftLowerAfterEntry.TabIndex = 493;
+            this.nudHydLiftLowerAfterEntry.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.nudHydLiftLowerAfterEntry.Value = new decimal(new int[] {
+            2,
+            0,
+            0,
+            0});
+            this.nudHydLiftLowerAfterEntry.Click += new System.EventHandler(this.nudHydLiftSecs_Click);
             // 
             // nudHydLiftLookAhead
             // 
@@ -6596,7 +6623,7 @@ namespace AgOpenGPS
             this.nudHydLiftLookAhead.DecimalPlaces = 1;
             this.nudHydLiftLookAhead.Font = new System.Drawing.Font("Tahoma", 27.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.nudHydLiftLookAhead.InterceptArrowKeys = false;
-            this.nudHydLiftLookAhead.Location = new System.Drawing.Point(34, 278);
+            this.nudHydLiftLookAhead.Location = new System.Drawing.Point(34, 218);
             this.nudHydLiftLookAhead.Maximum = new decimal(new int[] {
             20,
             0,
@@ -6625,11 +6652,11 @@ namespace AgOpenGPS
             this.labelHydLiftSec.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.labelHydLiftSec.ForeColor = System.Drawing.Color.Black;
             this.labelHydLiftSec.ImeMode = System.Windows.Forms.ImeMode.NoControl;
-            this.labelHydLiftSec.Location = new System.Drawing.Point(30, 200);
+            this.labelHydLiftSec.Location = new System.Drawing.Point(30, 170);
             this.labelHydLiftSec.Name = "labelHydLiftSec";
-            this.labelHydLiftSec.Size = new System.Drawing.Size(151, 73);
+            this.labelHydLiftSec.Size = new System.Drawing.Size(151, 45);
             this.labelHydLiftSec.TabIndex = 128;
-            this.labelHydLiftSec.Text = "Hydraulic Lift Look Ahead (secs)";
+            this.labelHydLiftSec.Text = "Raise Before Exit (m)";
             this.labelHydLiftSec.TextAlign = System.Drawing.ContentAlignment.BottomCenter;
             // 
             // labelRaiseTime
@@ -8749,6 +8776,7 @@ namespace AgOpenGPS
             this.tabAMachine.ResumeLayout(false);
             this.labelGroupHyd.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.nudHydLiftLookAhead)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudHydLiftLowerAfterEntry)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox6)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudLowerTime)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox7)).EndInit();
@@ -8908,6 +8936,7 @@ namespace AgOpenGPS
         private System.Windows.Forms.CheckBox cboxDataInvertRoll;
         private System.Windows.Forms.Label labelHydLiftSec;
         private NudlessNumericUpDown nudHydLiftLookAhead;
+        private NudlessNumericUpDown nudHydLiftLowerAfterEntry;
         private NudlessNumericUpDown nudVehicleTrack;
         private System.Windows.Forms.PictureBox pictureBox7;
         private System.Windows.Forms.PictureBox pictureBox6;

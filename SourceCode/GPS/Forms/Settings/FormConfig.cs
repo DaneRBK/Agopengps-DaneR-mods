@@ -194,8 +194,8 @@ namespace AgOpenGPS
             labelEnable.Text = gStr.gsEnable;
             labelRaiseTime.Text = gStr.gsRaiseTime;
             labelLowTime.Text = gStr.gsLowerTime;
-            labelPlantPop.Text = gStr.gsPlantPop;
-            labelHydLiftSec.Text = gStr.gsHydraulicLiftLookAhead;
+            labelPlantPop.Text = "Lower After Entry (m)";
+            labelHydLiftSec.Text = "Raise Before Exit (m)";
             labelUser1.Text = gStr.gsUserNo + " " + 1;
             labelUser2.Text = gStr.gsUserNo + " " + 2;
             labelUser3.Text = gStr.gsUserNo + " " + 3;

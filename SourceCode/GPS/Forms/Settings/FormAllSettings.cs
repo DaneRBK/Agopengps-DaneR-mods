@@ -215,7 +215,8 @@ namespace AgOpenGPS
             AddRow(mid, "Look Ahead On", tsDefault.setVehicle_toolLookAheadOn, ts.setVehicle_toolLookAheadOn);
             AddRow(mid, "Look Ahead Off", tsDefault.setVehicle_toolLookAheadOff, ts.setVehicle_toolLookAheadOff);
             AddRow(mid, "Tool Off Delay", tsDefault.setVehicle_toolOffDelay, ts.setVehicle_toolOffDelay);
-            AddRow(mid, "Hydraulic Lift LA", tsDefault.setVehicle_hydraulicLiftLookAhead, ts.setVehicle_hydraulicLiftLookAhead);
+            AddRow(mid, "Hyd Lift Raise m", tsDefault.setVehicle_hydraulicLiftLookAhead, ts.setVehicle_hydraulicLiftLookAhead);
+            AddRow(mid, "Hyd Lift Lower m", tsDefault.setVehicle_hydraulicLiftLowerAfterEntry, ts.setVehicle_hydraulicLiftLowerAfterEntry);
             AddRow(mid, "Headland Sect. Ctrl", tsDefault.setHeadland_isSectionControlled, ts.setHeadland_isSectionControlled);
 
             AddHeader(mid, "── Guidance (per Tool)");

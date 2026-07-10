@@ -112,6 +112,38 @@ namespace AgOpenGPS
             }
             return false;
         }
+
+        public double DistanceToHeadlandLine(vec2 pt)
+        {
+            if (bndList.Count == 0 || bndList[0].hdLine.Count < 2) return double.MaxValue;
+
+            double closestDistance = double.MaxValue;
+            var hdLine = bndList[0].hdLine;
+
+            for (int i = 0; i < hdLine.Count; i++)
+            {
+                vec3 a = hdLine[i];
+                vec3 b = hdLine[(i + 1) % hdLine.Count];
+
+                double dx = b.easting - a.easting;
+                double dy = b.northing - a.northing;
+                double lengthSquared = (dx * dx) + (dy * dy);
+                if (lengthSquared < 0.0001) continue;
+
+                double t = (((pt.easting - a.easting) * dx) + ((pt.northing - a.northing) * dy)) / lengthSquared;
+                if (t < 0) t = 0;
+                else if (t > 1) t = 1;
+
+                double projEasting = a.easting + (t * dx);
+                double projNorthing = a.northing + (t * dy);
+                double distance = glm.Distance(pt, projEasting, projNorthing);
+
+                if (distance < closestDistance) closestDistance = distance;
+            }
+
+            return closestDistance;
+        }
+
         public void CheckHeadlandProximity()
         {
             if (!isHeadlandOn || bndList.Count == 0 || bndList[0].hdLine.Count < 2)

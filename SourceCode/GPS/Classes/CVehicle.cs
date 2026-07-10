@@ -26,6 +26,8 @@ namespace AgOpenGPS
         public double maxSteerAngle, maxSteerSpeed, minSteerSpeed;
         public double maxAngularVelocity;
         public double hydLiftLookAheadTime;
+        public double hydLiftRaiseBeforeExitDistance;
+        public double hydLiftLowerAfterEntryDistance;
 
         public double hydLiftLookAheadDistanceLeft, hydLiftLookAheadDistanceRight;
 
@@ -78,6 +80,8 @@ namespace AgOpenGPS
             VehicleConfig.Type = (VehicleType)Properties.VehicleSettings.Default.setVehicle_vehicleType;
 
             hydLiftLookAheadTime = Properties.ToolSettings.Default.setVehicle_hydraulicLiftLookAhead;
+            hydLiftRaiseBeforeExitDistance = Properties.ToolSettings.Default.setVehicle_hydraulicLiftLookAhead;
+            hydLiftLowerAfterEntryDistance = Properties.ToolSettings.Default.setVehicle_hydraulicLiftLowerAfterEntry;
 
             deadZoneHeading = Properties.ToolSettings.Default.setAS_deadZoneHeading;
             deadZoneDelay = Properties.ToolSettings.Default.setAS_deadZoneDelay;

@@ -42,6 +42,7 @@ namespace AgOpenGPS
             {
                 cboxIsHydOn.Image = Properties.Resources.SwitchOn;
                 nudHydLiftLookAhead.Enabled = true;
+                nudHydLiftLowerAfterEntry.Enabled = true;
                 nudLowerTime.Enabled = true;
                 nudRaiseTime.Enabled = true;
             }
@@ -49,6 +50,7 @@ namespace AgOpenGPS
             {
                 cboxIsHydOn.Image = Properties.Resources.SwitchOff;
                 nudHydLiftLookAhead.Enabled = false;
+                nudHydLiftLowerAfterEntry.Enabled = false;
                 nudLowerTime.Enabled = false;
                 nudRaiseTime.Enabled = false;
             }
@@ -64,6 +66,7 @@ namespace AgOpenGPS
             btnSendMachinePGN.Focus();
 
             nudHydLiftLookAhead.Value = (decimal)Properties.ToolSettings.Default.setVehicle_hydraulicLiftLookAhead;
+            nudHydLiftLowerAfterEntry.Value = (decimal)Properties.ToolSettings.Default.setVehicle_hydraulicLiftLowerAfterEntry;
         }
         private void tabAMachine_Leave(object sender, EventArgs e)
         {
@@ -131,6 +134,7 @@ namespace AgOpenGPS
             {
                 cboxIsHydOn.Image = Properties.Resources.SwitchOn;
                 nudHydLiftLookAhead.Enabled = true;
+                nudHydLiftLowerAfterEntry.Enabled = true;
                 nudLowerTime.Enabled = true;
                 nudRaiseTime.Enabled = true;
             }
@@ -138,6 +142,7 @@ namespace AgOpenGPS
             {
                 cboxIsHydOn.Image = Properties.Resources.SwitchOff;
                 nudHydLiftLookAhead.Enabled = false;
+                nudHydLiftLowerAfterEntry.Enabled = false;
                 nudLowerTime.Enabled = false;
                 nudRaiseTime.Enabled = false;
             }
@@ -170,6 +175,9 @@ namespace AgOpenGPS
 
             Properties.ToolSettings.Default.setVehicle_hydraulicLiftLookAhead = (double)nudHydLiftLookAhead.Value;
             mf.vehicle.hydLiftLookAheadTime = Properties.ToolSettings.Default.setVehicle_hydraulicLiftLookAhead;
+            mf.vehicle.hydLiftRaiseBeforeExitDistance = Properties.ToolSettings.Default.setVehicle_hydraulicLiftLookAhead;
+            Properties.ToolSettings.Default.setVehicle_hydraulicLiftLowerAfterEntry = (double)nudHydLiftLowerAfterEntry.Value;
+            mf.vehicle.hydLiftLowerAfterEntryDistance = Properties.ToolSettings.Default.setVehicle_hydraulicLiftLowerAfterEntry;
 
             mf.p_238.pgn[mf.p_238.set0] = (byte)sett;
             mf.p_238.pgn[mf.p_238.raiseTime] = (byte)nudRaiseTime.Value;

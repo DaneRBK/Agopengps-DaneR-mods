@@ -121,6 +121,7 @@ namespace AgOpenGPS.Properties
         public double setVehicle_slowSpeedCutoff = 0.5;
         public double setVehicle_minCoverage = 100;
         public double setVehicle_hydraulicLiftLookAhead = 2;
+        public double setVehicle_hydraulicLiftLowerAfterEntry = 2;
         public bool setF_isSteerWorkSwitchEnabled = false;
 
         public LoadResult Load(string toolFileName)

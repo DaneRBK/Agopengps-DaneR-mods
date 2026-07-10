@@ -931,9 +931,9 @@ namespace AgOpenGPS
             //determine where the tool is wrt to headland
             if (bnd.isHeadlandOn) bnd.WhereAreToolCorners();
 
-            //set the look ahead for hyd Lift in pixels per second
-            vehicle.hydLiftLookAheadDistanceLeft = tool.farLeftSpeed * vehicle.hydLiftLookAheadTime * 10;
-            vehicle.hydLiftLookAheadDistanceRight = tool.farRightSpeed * vehicle.hydLiftLookAheadTime * 10;
+            //set the hydraulic lift trigger distance in decimeters for the read-pixel scan
+            vehicle.hydLiftLookAheadDistanceLeft = vehicle.hydLiftRaiseBeforeExitDistance * 10;
+            vehicle.hydLiftLookAheadDistanceRight = vehicle.hydLiftRaiseBeforeExitDistance * 10;
 
             if (vehicle.hydLiftLookAheadDistanceLeft > 200) vehicle.hydLiftLookAheadDistanceLeft = 200;
             if (vehicle.hydLiftLookAheadDistanceRight > 200) vehicle.hydLiftLookAheadDistanceRight = 200;
@@ -1063,8 +1063,18 @@ namespace AgOpenGPS
 
             GetOutTool: //goto
 
-                //is the tool completely in the headland or not
-                bnd.isToolInHeadland = bnd.isToolOuterPointsInHeadland && !isHeadlandClose;
+                bool wasHydLiftRaised = p_239.pgn[p_239.hydLift] == 2;
+                bool isToolInWorkArea = !bnd.isToolOuterPointsInHeadland;
+                bool isLeavingWorkAreaSoon = isToolInWorkArea && isHeadlandClose;
+                bool isEnteringWorkAreaDelay = false;
+
+                if (wasHydLiftRaised && isToolInWorkArea && vehicle.hydLiftLowerAfterEntryDistance > 0)
+                {
+                    double distanceFromHeadland = bnd.DistanceToHeadlandLine(toolPivotPos.ToVec2());
+                    isEnteringWorkAreaDelay = distanceFromHeadland < vehicle.hydLiftLowerAfterEntryDistance;
+                }
+
+                bnd.isToolInHeadland = bnd.isToolOuterPointsInHeadland || isLeavingWorkAreaSoon || isEnteringWorkAreaDelay;
 
                 bnd.SetHydPosition();
             }
