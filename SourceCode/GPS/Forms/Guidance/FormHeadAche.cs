@@ -873,10 +873,22 @@ namespace AgOpenGPS
                 return false;
             }
 
-            AddHeadPathBetweenBoundaryEnds(firstLine, fenceLine[firstLine.a_point], fenceLine[firstLine.b_point]);
-            AddBoundarySegment(firstLine.b_point, secondLine.a_point, fenceLine);
-            AddHeadPathBetweenBoundaryEnds(secondLine, fenceLine[secondLine.a_point], fenceLine[secondLine.b_point]);
-            AddBoundarySegment(secondLine.b_point, firstLine.a_point, fenceLine);
+            vec3 firstStart = GetHeadPathPoint(firstLine, true, fenceLine[firstLine.a_point]);
+            vec3 firstEnd = GetHeadPathPoint(firstLine, false, fenceLine[firstLine.b_point]);
+            vec3 secondStart = GetHeadPathPoint(secondLine, true, fenceLine[secondLine.a_point]);
+            vec3 secondEnd = GetHeadPathPoint(secondLine, false, fenceLine[secondLine.b_point]);
+
+            int firstSideStart = FindClosestBoundaryIndexOnSegment(firstLine.b_point, secondLine.a_point, firstEnd, fenceLine);
+            int firstSideEnd = FindClosestBoundaryIndexOnSegment(firstLine.b_point, secondLine.a_point, secondStart, fenceLine);
+            int secondSideStart = FindClosestBoundaryIndexOnSegment(secondLine.b_point, firstLine.a_point, secondEnd, fenceLine);
+            int secondSideEnd = FindClosestBoundaryIndexOnSegment(secondLine.b_point, firstLine.a_point, firstStart, fenceLine);
+
+            AddHeadlandPoint(firstStart);
+            AddHeadlandPoint(firstEnd);
+            AddBoundarySegment(firstSideStart, firstSideEnd, fenceLine);
+            AddHeadlandPoint(secondStart);
+            AddHeadlandPoint(secondEnd);
+            AddBoundarySegment(secondSideStart, secondSideEnd, fenceLine);
 
             return mf.bnd.bndList[0].hdLine.Count > 3;
         }
@@ -942,6 +954,41 @@ namespace AgOpenGPS
         {
             return ((firstPoint.easting - secondPoint.easting) * (firstPoint.easting - secondPoint.easting)) +
                 ((firstPoint.northing - secondPoint.northing) * (firstPoint.northing - secondPoint.northing));
+        }
+
+        private vec3 GetHeadPathPoint(CHeadPath headPath, bool isStart, vec3 boundaryPoint)
+        {
+            int index = isStart
+                ? (IsValidTrackIndex(headPath.lineStartIndex, headPath.trackPts.Count) ? headPath.lineStartIndex : FindClosestTrackPoint(headPath.trackPts, boundaryPoint))
+                : (IsValidTrackIndex(headPath.lineEndIndex, headPath.trackPts.Count) ? headPath.lineEndIndex : FindClosestTrackPoint(headPath.trackPts, boundaryPoint));
+
+            return headPath.trackPts[index];
+        }
+
+        private int FindClosestBoundaryIndexOnSegment(int startIndex, int endIndex, vec3 point, List<vec3> fenceLine)
+        {
+            int fenceCount = fenceLine.Count;
+            int index = NormalizeBoundaryIndex(startIndex, fenceCount);
+            int endFenceIndex = NormalizeBoundaryIndex(endIndex, fenceCount);
+            int closestIndex = index;
+            double closestDistance = double.MaxValue;
+
+            while (true)
+            {
+                double distance = GetDistanceSquared(point, fenceLine[index]);
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestIndex = index;
+                }
+
+                if (index == endFenceIndex) break;
+
+                index++;
+                if (index >= fenceCount) index = 0;
+            }
+
+            return closestIndex;
         }
 
         private void AddHeadPathBetweenBoundaryEnds(CHeadPath headPath, vec3 startBoundary, vec3 endBoundary)
