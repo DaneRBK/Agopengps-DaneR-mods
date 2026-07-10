@@ -32,8 +32,6 @@ namespace AgOpenGPS
 
         byte[] grnPixels = new byte[150001];
 
-        private bool isHeadlandClose = false;
-
         int deadCam = 0;
 
         StringBuilder sb = new StringBuilder();
@@ -988,8 +986,6 @@ namespace AgOpenGPS
             if (tool.lookAheadDistanceOnPixelsLeft > tool.lookAheadDistanceOnPixelsRight) rpOnHeight = tool.lookAheadDistanceOnPixelsLeft;
             else rpOnHeight = tool.lookAheadDistanceOnPixelsRight;
 
-            isHeadlandClose = false;
-
             #endregion
 
             #region Back buffer scan
@@ -1041,40 +1037,36 @@ namespace AgOpenGPS
             }
             else tram.controlByte = 0;
 
-            //determine if in or out of headland, do hydraulics if on
-            if (bnd.isHeadlandOn)
+            //determine if in or out of the field boundary, do hydraulics if on
+            if (bnd.bndList.Count > 0 && bnd.bndList[0].fenceLine.Count > 2)
             {
-                //calculate the slope
-                double m = (vehicle.hydLiftLookAheadDistanceRight - vehicle.hydLiftLookAheadDistanceLeft) / tool.rpWidth;
-                int height = 1;
-
-                for (int pos = 0; pos < tool.rpWidth; pos++)
-                {
-                    height = (int)(vehicle.hydLiftLookAheadDistanceLeft + (m * pos)) - 1;
-                    for (int a = pos; a < height * tool.rpWidth; a += tool.rpWidth)
-                    {
-                        if (grnPixels[a] == 250)
-                        {
-                            isHeadlandClose = true;
-                            goto GetOutTool;
-                        }
-                    }
-                }
-
-            GetOutTool: //goto
-
                 bool wasHydLiftRaised = p_239.pgn[p_239.hydLift] == 2;
-                bool isToolInWorkArea = !bnd.isToolOuterPointsInHeadland;
-                bool isLeavingWorkAreaSoon = isToolInWorkArea && isHeadlandClose;
+                bool isLeftInField = bnd.IsPointInsideFenceArea(section[0].leftPoint);
+                bool isRightInField = bnd.IsPointInsideFenceArea(section[tool.numOfSections - 1].rightPoint);
+                bool isToolInWorkArea = isLeftInField || isRightInField;
+
+                double sinAB = Math.Sin(toolPivotPos.heading);
+                double cosAB = Math.Cos(toolPivotPos.heading);
+                double raiseDistance = vehicle.hydLiftRaiseBeforeExitDistance;
+
+                vec2 lookAheadLeft = new vec2(
+                    section[0].leftPoint.easting + (sinAB * raiseDistance),
+                    section[0].leftPoint.northing + (cosAB * raiseDistance));
+                vec2 lookAheadRight = new vec2(
+                    section[tool.numOfSections - 1].rightPoint.easting + (sinAB * raiseDistance),
+                    section[tool.numOfSections - 1].rightPoint.northing + (cosAB * raiseDistance));
+
+                bool isLeavingWorkAreaSoon = isToolInWorkArea &&
+                    (!bnd.IsPointInsideFenceArea(lookAheadLeft) || !bnd.IsPointInsideFenceArea(lookAheadRight));
                 bool isEnteringWorkAreaDelay = false;
 
                 if (wasHydLiftRaised && isToolInWorkArea && vehicle.hydLiftLowerAfterEntryDistance > 0)
                 {
-                    double distanceFromHeadland = bnd.DistanceToHeadlandLine(toolPivotPos.ToVec2());
-                    isEnteringWorkAreaDelay = distanceFromHeadland < vehicle.hydLiftLowerAfterEntryDistance;
+                    double distanceFromBoundary = bnd.DistanceToFenceLine(toolPivotPos.ToVec2());
+                    isEnteringWorkAreaDelay = distanceFromBoundary < vehicle.hydLiftLowerAfterEntryDistance;
                 }
 
-                bnd.isToolInHeadland = bnd.isToolOuterPointsInHeadland || isLeavingWorkAreaSoon || isEnteringWorkAreaDelay;
+                bnd.isToolInHeadland = !isToolInWorkArea || isLeavingWorkAreaSoon || isEnteringWorkAreaDelay;
 
                 bnd.SetHydPosition();
             }

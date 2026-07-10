@@ -117,13 +117,24 @@ namespace AgOpenGPS
         {
             if (bndList.Count == 0 || bndList[0].hdLine.Count < 2) return double.MaxValue;
 
-            double closestDistance = double.MaxValue;
-            var hdLine = bndList[0].hdLine;
+            return DistanceToLine(pt, bndList[0].hdLine);
+        }
 
-            for (int i = 0; i < hdLine.Count; i++)
+        public double DistanceToFenceLine(vec2 pt)
+        {
+            if (bndList.Count == 0 || bndList[0].fenceLine.Count < 2) return double.MaxValue;
+
+            return DistanceToLine(pt, bndList[0].fenceLine);
+        }
+
+        private double DistanceToLine(vec2 pt, System.Collections.Generic.List<vec3> line)
+        {
+            double closestDistance = double.MaxValue;
+
+            for (int i = 0; i < line.Count; i++)
             {
-                vec3 a = hdLine[i];
-                vec3 b = hdLine[(i + 1) % hdLine.Count];
+                vec3 a = line[i];
+                vec3 b = line[(i + 1) % line.Count];
 
                 double dx = b.easting - a.easting;
                 double dy = b.northing - a.northing;
