@@ -25,6 +25,8 @@ namespace AgOpenGPS
         public int mode = 0;
         public int a_point = 0;
         public int b_point = -1;
+        public int lineStartIndex = -1;
+        public int lineEndIndex = -1;
 
         public GeoLineSegment GetHeadPathSegment(int index)
         {

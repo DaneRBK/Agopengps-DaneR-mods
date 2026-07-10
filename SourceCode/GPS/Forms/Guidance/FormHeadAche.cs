@@ -313,6 +313,7 @@ namespace AgOpenGPS
 
                     mf.hdl.tracksArr[mf.hdl.idx].a_point = NormalizeBoundaryIndex(start, mf.bnd.bndList[bndSelect].fenceLine.Count);
                     mf.hdl.tracksArr[mf.hdl.idx].b_point = NormalizeBoundaryIndex(isLoop ? limit : end, mf.bnd.bndList[bndSelect].fenceLine.Count);
+                    mf.hdl.tracksArr[mf.hdl.idx].lineStartIndex = 0;
                     mf.hdl.tracksArr[mf.hdl.idx].trackPts?.Clear();
 
                     if (start < end)
@@ -350,6 +351,7 @@ namespace AgOpenGPS
                     CABCurve.CalculateHeadings(ref mf.hdl.tracksArr[mf.hdl.idx].trackPts);
 
                     int ptCnt = mf.hdl.tracksArr[mf.hdl.idx].trackPts.Count - 1;
+                    mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex = ptCnt;
 
                     for (int i = 1; i < 30; i++)
                     {
@@ -368,6 +370,8 @@ namespace AgOpenGPS
                         pnt.northing -= (Math.Cos(pnt.heading) * i);
                         mf.hdl.tracksArr[mf.hdl.idx].trackPts.Insert(0, pnt);
                     }
+                    mf.hdl.tracksArr[mf.hdl.idx].lineStartIndex += 29;
+                    mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex += 29;
 
                     //create a name
                     mf.hdl.tracksArr[mf.hdl.idx].name = mf.hdl.idx.ToString() + " Cu " + DateTime.Now.ToString("mm:ss", CultureInfo.InvariantCulture);
@@ -423,6 +427,7 @@ namespace AgOpenGPS
 
                     mf.hdl.tracksArr[mf.hdl.idx].a_point = NormalizeBoundaryIndex(start, mf.bnd.bndList[bndSelect].fenceLine.Count);
                     mf.hdl.tracksArr[mf.hdl.idx].b_point = NormalizeBoundaryIndex(end, mf.bnd.bndList[bndSelect].fenceLine.Count);
+                    mf.hdl.tracksArr[mf.hdl.idx].lineStartIndex = 0;
                     mf.hdl.tracksArr[mf.hdl.idx].trackPts?.Clear();
 
                     ptA.heading = abHead;
@@ -440,6 +445,7 @@ namespace AgOpenGPS
                     }
 
                     int ptCnt = mf.hdl.tracksArr[mf.hdl.idx].trackPts.Count - 1;
+                    mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex = ptCnt;
 
                     for (int i = 1; i < 30; i++)
                     {
@@ -458,6 +464,8 @@ namespace AgOpenGPS
                         pnt.northing -= (Math.Cos(pnt.heading) * i);
                         mf.hdl.tracksArr[mf.hdl.idx].trackPts.Insert(0, pnt);
                     }
+                    mf.hdl.tracksArr[mf.hdl.idx].lineStartIndex += 29;
+                    mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex += 29;
 
                     //create a name
                     mf.hdl.tracksArr[mf.hdl.idx].name = mf.hdl.idx.ToString() + " AB " + DateTime.Now.ToString("hh:mm:ss", CultureInfo.InvariantCulture);
@@ -484,6 +492,8 @@ namespace AgOpenGPS
                 vec3 point;
 
                 int refCount = mf.hdl.tracksArr[mf.hdl.idx].trackPts.Count;
+                int shiftedLineStartIndex = -1;
+                int shiftedLineEndIndex = -1;
                 for (int i = 0; i < refCount; i++)
                 {
                     point = new vec3(
@@ -510,9 +520,18 @@ namespace AgOpenGPS
                             double dist = ((point.easting - mf.hdl.desList[mf.hdl.desList.Count - 1].easting) * (point.easting - mf.hdl.desList[mf.hdl.desList.Count - 1].easting))
                                 + ((point.northing - mf.hdl.desList[mf.hdl.desList.Count - 1].northing) * (point.northing - mf.hdl.desList[mf.hdl.desList.Count - 1].northing));
                             if (dist > 1)
+                            {
+                                if (i >= mf.hdl.tracksArr[mf.hdl.idx].lineStartIndex && shiftedLineStartIndex < 0) shiftedLineStartIndex = mf.hdl.desList.Count;
+                                if (i <= mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex) shiftedLineEndIndex = mf.hdl.desList.Count;
                                 mf.hdl.desList.Add(point);
+                            }
                         }
-                        else mf.hdl.desList.Add(point);
+                        else
+                        {
+                            if (i >= mf.hdl.tracksArr[mf.hdl.idx].lineStartIndex && shiftedLineStartIndex < 0) shiftedLineStartIndex = mf.hdl.desList.Count;
+                            if (i <= mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex) shiftedLineEndIndex = mf.hdl.desList.Count;
+                            mf.hdl.desList.Add(point);
+                        }
                     }
                 }
 
@@ -522,6 +541,9 @@ namespace AgOpenGPS
                 {
                     mf.hdl.tracksArr[mf.hdl.idx].trackPts.Add(new vec3(mf.hdl.desList[i]));
                 }
+
+                if (shiftedLineStartIndex >= 0) mf.hdl.tracksArr[mf.hdl.idx].lineStartIndex = shiftedLineStartIndex;
+                if (shiftedLineEndIndex >= 0) mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex = shiftedLineEndIndex;
 
                 mf.hdl.desList?.Clear();
             }
@@ -851,8 +873,13 @@ namespace AgOpenGPS
 
         private void AddHeadPathBetweenBoundaryEnds(CHeadPath headPath, vec3 startBoundary, vec3 endBoundary)
         {
-            int startIndex = FindClosestTrackPoint(headPath.trackPts, startBoundary);
-            int endIndex = FindClosestTrackPoint(headPath.trackPts, endBoundary);
+            int startIndex = IsValidTrackIndex(headPath.lineStartIndex, headPath.trackPts.Count)
+                ? headPath.lineStartIndex
+                : FindClosestTrackPoint(headPath.trackPts, startBoundary);
+
+            int endIndex = IsValidTrackIndex(headPath.lineEndIndex, headPath.trackPts.Count)
+                ? headPath.lineEndIndex
+                : FindClosestTrackPoint(headPath.trackPts, endBoundary);
 
             if (startIndex <= endIndex)
             {
@@ -924,6 +951,11 @@ namespace AgOpenGPS
         }
 
         private bool IsValidBoundaryIndex(int index, int count)
+        {
+            return index >= 0 && index < count;
+        }
+
+        private bool IsValidTrackIndex(int index, int count)
         {
             return index >= 0 && index < count;
         }
