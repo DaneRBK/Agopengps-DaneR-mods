@@ -311,7 +311,8 @@ namespace AgOpenGPS
                         }
                     }
 
-                    mf.hdl.tracksArr[mf.hdl.idx].a_point = start;
+                    mf.hdl.tracksArr[mf.hdl.idx].a_point = NormalizeBoundaryIndex(start, mf.bnd.bndList[bndSelect].fenceLine.Count);
+                    mf.hdl.tracksArr[mf.hdl.idx].b_point = NormalizeBoundaryIndex(isLoop ? limit : end, mf.bnd.bndList[bndSelect].fenceLine.Count);
                     mf.hdl.tracksArr[mf.hdl.idx].trackPts?.Clear();
 
                     if (start < end)
@@ -420,7 +421,8 @@ namespace AgOpenGPS
                         mf.hdl.idx = mf.hdl.tracksArr.Count - 1;
                     }
 
-                    mf.hdl.tracksArr[mf.hdl.idx].a_point = start;
+                    mf.hdl.tracksArr[mf.hdl.idx].a_point = NormalizeBoundaryIndex(start, mf.bnd.bndList[bndSelect].fenceLine.Count);
+                    mf.hdl.tracksArr[mf.hdl.idx].b_point = NormalizeBoundaryIndex(end, mf.bnd.bndList[bndSelect].fenceLine.Count);
                     mf.hdl.tracksArr[mf.hdl.idx].trackPts?.Clear();
 
                     ptA.heading = abHead;
@@ -730,6 +732,12 @@ namespace AgOpenGPS
             //build the headland
             mf.bnd.bndList[0].hdLine?.Clear();
 
+            if (mf.hdl.tracksArr.Count == 2 && TryBuildTwoEndHeadland())
+            {
+                FinishBuiltHeadland();
+                return;
+            }
+
             int numOfLines = mf.hdl.tracksArr.Count;
             int nextLine = 0;
             crossings.Clear();
@@ -810,6 +818,126 @@ namespace AgOpenGPS
             //    }
             //}
 
+            FinishBuiltHeadland();
+        }
+
+        private bool TryBuildTwoEndHeadland()
+        {
+            if (mf.bnd.bndList.Count == 0 || mf.bnd.bndList[0].fenceLine.Count < 4) return false;
+
+            List<vec3> fenceLine = mf.bnd.bndList[0].fenceLine;
+            CHeadPath firstLine = mf.hdl.tracksArr[0];
+            CHeadPath secondLine = mf.hdl.tracksArr[1];
+
+            if (!IsValidBoundaryIndex(firstLine.a_point, fenceLine.Count) ||
+                !IsValidBoundaryIndex(firstLine.b_point, fenceLine.Count) ||
+                !IsValidBoundaryIndex(secondLine.a_point, fenceLine.Count) ||
+                !IsValidBoundaryIndex(secondLine.b_point, fenceLine.Count) ||
+                firstLine.a_point == firstLine.b_point ||
+                secondLine.a_point == secondLine.b_point ||
+                firstLine.trackPts.Count < 2 ||
+                secondLine.trackPts.Count < 2)
+            {
+                return false;
+            }
+
+            AddHeadPathBetweenBoundaryEnds(firstLine, fenceLine[firstLine.a_point], fenceLine[firstLine.b_point]);
+            AddBoundarySegment(firstLine.b_point, secondLine.a_point, fenceLine);
+            AddHeadPathBetweenBoundaryEnds(secondLine, fenceLine[secondLine.a_point], fenceLine[secondLine.b_point]);
+            AddBoundarySegment(secondLine.b_point, firstLine.a_point, fenceLine);
+
+            return mf.bnd.bndList[0].hdLine.Count > 3;
+        }
+
+        private void AddHeadPathBetweenBoundaryEnds(CHeadPath headPath, vec3 startBoundary, vec3 endBoundary)
+        {
+            int startIndex = FindClosestTrackPoint(headPath.trackPts, startBoundary);
+            int endIndex = FindClosestTrackPoint(headPath.trackPts, endBoundary);
+
+            if (startIndex <= endIndex)
+            {
+                for (int i = startIndex; i <= endIndex; i++)
+                {
+                    AddHeadlandPoint(headPath.trackPts[i]);
+                }
+            }
+            else
+            {
+                for (int i = startIndex; i >= endIndex; i--)
+                {
+                    AddHeadlandPoint(headPath.trackPts[i]);
+                }
+            }
+        }
+
+        private void AddBoundarySegment(int startIndex, int endIndex, List<vec3> fenceLine)
+        {
+            int fenceCount = fenceLine.Count;
+            int index = NormalizeBoundaryIndex(startIndex, fenceCount);
+            int endFenceIndex = NormalizeBoundaryIndex(endIndex, fenceCount);
+
+            while (true)
+            {
+                AddHeadlandPoint(fenceLine[index]);
+                if (index == endFenceIndex) break;
+
+                index++;
+                if (index >= fenceCount) index = 0;
+            }
+        }
+
+        private int FindClosestTrackPoint(List<vec3> trackPts, vec3 boundaryPoint)
+        {
+            int closestIndex = 0;
+            double closestDistance = double.MaxValue;
+
+            for (int i = 0; i < trackPts.Count; i++)
+            {
+                double distance =
+                    ((trackPts[i].easting - boundaryPoint.easting) * (trackPts[i].easting - boundaryPoint.easting)) +
+                    ((trackPts[i].northing - boundaryPoint.northing) * (trackPts[i].northing - boundaryPoint.northing));
+
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestIndex = i;
+                }
+            }
+
+            return closestIndex;
+        }
+
+        private void AddHeadlandPoint(vec3 point)
+        {
+            List<vec3> hdLine = mf.bnd.bndList[0].hdLine;
+            if (hdLine.Count > 0)
+            {
+                vec3 lastPoint = hdLine[hdLine.Count - 1];
+                double distance =
+                    ((lastPoint.easting - point.easting) * (lastPoint.easting - point.easting)) +
+                    ((lastPoint.northing - point.northing) * (lastPoint.northing - point.northing));
+
+                if (distance < 0.01) return;
+            }
+
+            hdLine.Add(new vec3(point));
+        }
+
+        private bool IsValidBoundaryIndex(int index, int count)
+        {
+            return index >= 0 && index < count;
+        }
+
+        private int NormalizeBoundaryIndex(int index, int count)
+        {
+            if (count == 0) return 0;
+            index %= count;
+            if (index < 0) index += count;
+            return index;
+        }
+
+        private void FinishBuiltHeadland()
+        {
             vec3[] hdArr;
 
             if (mf.bnd.bndList[0].hdLine.Count > 0)
