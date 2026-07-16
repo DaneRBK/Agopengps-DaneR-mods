@@ -126,6 +126,48 @@ namespace AgOpenGPS
             return trak;
         }
 
+        public int FindLongestVisibleTrack()
+        {
+            int trak = -1;
+            double longest = double.MinValue;
+
+            for (int i = 0; i < gArr.Count; i++)
+            {
+                if (!gArr[i].isVisible) continue;
+
+                double length = GetTrackLength(gArr[i]);
+                if (length > longest)
+                {
+                    longest = length;
+                    trak = i;
+                }
+            }
+
+            return trak;
+        }
+
+        public static double GetTrackLength(CTrk track)
+        {
+            if (track == null) return 0;
+
+            if (track.mode == TrackMode.AB)
+            {
+                double deltaEast = track.ptB.easting - track.ptA.easting;
+                double deltaNorth = track.ptB.northing - track.ptA.northing;
+                return Math.Sqrt((deltaEast * deltaEast) + (deltaNorth * deltaNorth));
+            }
+
+            if (track.curvePts == null || track.curvePts.Count < 2) return 0;
+
+            double length = 0;
+            for (int i = 1; i < track.curvePts.Count; i++)
+            {
+                length += glm.Distance(track.curvePts[i - 1], track.curvePts[i]);
+            }
+
+            return length;
+        }
+
         public void NudgeTrack(double dist)
         {
             if (idx > -1)

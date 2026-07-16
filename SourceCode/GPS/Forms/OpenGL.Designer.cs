@@ -365,6 +365,8 @@ namespace AgOpenGPS
                             bnd.bndList[0].hdLine.DrawPolygon();
                         }
 
+                        DrawHydLiftLines();
+
                         DrawBoundaryDimensionsOverlay();
                     }
 
@@ -492,6 +494,8 @@ namespace AgOpenGPS
                     }
 
                     if (trk.idx > -1 && !ct.isContourBtnOn) DrawTrackInfo();
+
+                    DrawBodyLineHoldText();
 
                     if (bnd.bndList.Count > 0 && yt.isYouTurnBtnOn) DrawUTurnBtn();
 
@@ -1066,7 +1070,38 @@ namespace AgOpenGPS
                     isEnteringWorkAreaDelay = distanceFromBoundary < vehicle.hydLiftLowerAfterEntryDistance;
                 }
 
-                bnd.isToolInHeadland = !isToolInWorkArea || isLeavingWorkAreaSoon || isEnteringWorkAreaDelay;
+                bool isHeadlandHydLiftRaised = false;
+                if (bnd.isHeadlandOn && bnd.bndList[0].hdLine.Count > 2)
+                {
+                    bool isLeftInHeadlandWorkArea = bnd.IsPointInsideHeadArea(section[0].leftPoint);
+                    bool isRightInHeadlandWorkArea = bnd.IsPointInsideHeadArea(section[tool.numOfSections - 1].rightPoint);
+                    bool isToolInHeadlandWorkArea = isLeftInHeadlandWorkArea || isRightInHeadlandWorkArea;
+
+                    bool isLeavingHeadlandWorkAreaSoon = isToolInHeadlandWorkArea &&
+                        (!bnd.IsPointInsideHeadArea(lookAheadLeft) || !bnd.IsPointInsideHeadArea(lookAheadRight));
+                    bool isEnteringHeadlandWorkAreaDelay = false;
+
+                    if (wasHydLiftRaised && isToolInHeadlandWorkArea && vehicle.hydLiftLowerAfterEntryDistance > 0)
+                    {
+                        double distanceFromHeadland = bnd.DistanceToHeadlandLine(toolPivotPos.ToVec2());
+                        isEnteringHeadlandWorkAreaDelay = distanceFromHeadland < vehicle.hydLiftLowerAfterEntryDistance;
+                    }
+
+                    isHeadlandHydLiftRaised = !isToolInHeadlandWorkArea || isLeavingHeadlandWorkAreaSoon || isEnteringHeadlandWorkAreaDelay;
+                }
+
+                vec2 lookAheadTool = new vec2(
+                    toolPivotPos.easting + (sinAB * raiseDistance),
+                    toolPivotPos.northing + (cosAB * raiseDistance));
+                bool isHydLiftLineRaised = bnd.IsHydLiftLineRaised(
+                    toolPivotPos.ToVec2(),
+                    lookAheadTool,
+                    section[0].leftPoint,
+                    lookAheadLeft,
+                    section[tool.numOfSections - 1].rightPoint,
+                    lookAheadRight);
+
+                bnd.isToolInHeadland = !isToolInWorkArea || isLeavingWorkAreaSoon || isEnteringWorkAreaDelay || isHeadlandHydLiftRaised || isHydLiftLineRaised;
 
                 bnd.SetHydPosition();
             }
@@ -2414,6 +2449,18 @@ namespace AgOpenGPS
             font.DrawText(start, down, dire, textSize);
         }
 
+        private void DrawBodyLineHoldText()
+        {
+            if (!IsBodyLineHoldActing || IsXteGuardActing) return;
+
+            string text = BodyLineHoldCorrectionDeg.ToString("N2") + " deg";
+            int center = -(int)(text.Length * 9.0);
+            int down = Math.Min(oglMain.Height - 150, (oglMain.Height / 2) + 110);
+
+            GL.Color3(1.0f, 0.93f, 0.0f);
+            font.DrawText(center, down, text, 1.25);
+        }
+
         private void DrawCompassText()
         {
             GL.Color3(0.90f, 0.90f, 0.93f);
@@ -2563,6 +2610,26 @@ namespace AgOpenGPS
             ScreenTextures.Lift.DrawCenteredAroundOrigin(new XyDelta(48, 64));
 
             GL.PopMatrix();
+        }
+
+        private void DrawHydLiftLines()
+        {
+            if (hdl?.tracksArr == null || hdl.tracksArr.Count == 0) return;
+
+            GL.LineWidth(ABLine.lineWidth * 2);
+            GL.Color4(0.05f, 0.85f, 1.0f, 1.0f);
+
+            foreach (CHeadPath headPath in hdl.tracksArr)
+            {
+                if (headPath.trackPts == null || headPath.trackPts.Count < 2) continue;
+
+                GL.Begin(PrimitiveType.LineStrip);
+                foreach (vec3 item in headPath.trackPts)
+                {
+                    GL.Vertex3(item.easting, item.northing, 0);
+                }
+                GL.End();
+            }
         }
 
         private void DrawSpeedo()

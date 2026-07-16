@@ -1,4 +1,5 @@
 ﻿using AgOpenGPS.Core.Models;
+using System;
 using System.Collections.Generic;
 
 namespace AgOpenGPS
@@ -19,6 +20,8 @@ namespace AgOpenGPS
 
     public class CHeadPath
     {
+        public const string HydLiftLinePrefix = "[Hyd]";
+
         public List<vec3> trackPts = new List<vec3>();
         public string name = "";
         public double moveDistance = 0;
@@ -27,6 +30,8 @@ namespace AgOpenGPS
         public int b_point = -1;
         public int lineStartIndex = -1;
         public int lineEndIndex = -1;
+
+        public bool IsHydLiftLine => name != null && name.StartsWith(HydLiftLinePrefix, StringComparison.OrdinalIgnoreCase);
 
         public GeoLineSegment GetHeadPathSegment(int index)
         {

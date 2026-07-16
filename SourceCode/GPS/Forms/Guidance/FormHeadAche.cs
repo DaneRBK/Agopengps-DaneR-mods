@@ -31,6 +31,8 @@ namespace AgOpenGPS
         public vec3 pint = new vec3(0.0, 1.0, 0.0);
 
         private bool isLinesVisible = true;
+        private bool isHydLiftLineStartSet;
+        private vec3 hydLiftLineStartPoint = new vec3();
 
         public FormHeadAche(Form callingForm)
         {
@@ -126,6 +128,12 @@ namespace AgOpenGPS
 
         private void FixLabelsCurve()
         {
+        }
+
+        private string BuildHeadPathName(string lineType, string timeFormat)
+        {
+            string hydPrefix = cboxHydLiftLine.Checked ? CHeadPath.HydLiftLinePrefix + " " : "";
+            return hydPrefix + mf.hdl.idx.ToString(CultureInfo.InvariantCulture) + " " + lineType + " " + DateTime.Now.ToString(timeFormat, CultureInfo.InvariantCulture);
         }
 
         private void btnCycleForward_Click(object sender, EventArgs e)
@@ -224,6 +232,11 @@ namespace AgOpenGPS
             zoom = 1;
             sX = 0;
             sY = 0;
+
+            if (TryHandleHydLiftLineClick(new vec3(pint)))
+            {
+                return;
+            }
 
             mf.bnd.bndList[0].hdLine?.Clear();
             mf.hdl.idx = -1;
@@ -384,7 +397,7 @@ namespace AgOpenGPS
                     mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex += 29;
 
                     //create a name
-                    mf.hdl.tracksArr[mf.hdl.idx].name = mf.hdl.idx.ToString() + " Cu " + DateTime.Now.ToString("mm:ss", CultureInfo.InvariantCulture);
+                    mf.hdl.tracksArr[mf.hdl.idx].name = BuildHeadPathName("Cu", "mm:ss");
 
                     mf.hdl.tracksArr[mf.hdl.idx].moveDistance = 0;
 
@@ -478,7 +491,7 @@ namespace AgOpenGPS
                     mf.hdl.tracksArr[mf.hdl.idx].lineEndIndex += 29;
 
                     //create a name
-                    mf.hdl.tracksArr[mf.hdl.idx].name = mf.hdl.idx.ToString() + " AB " + DateTime.Now.ToString("hh:mm:ss", CultureInfo.InvariantCulture);
+                    mf.hdl.tracksArr[mf.hdl.idx].name = BuildHeadPathName("AB", "hh:mm:ss");
 
                     mf.hdl.tracksArr[mf.hdl.idx].moveDistance = 0;
 
@@ -559,6 +572,102 @@ namespace AgOpenGPS
             }
         }
 
+        private bool TryHandleHydLiftLineClick(vec3 clickPoint)
+        {
+            if (!cboxHydLiftLine.Checked)
+            {
+                isHydLiftLineStartSet = false;
+                return false;
+            }
+
+            start = 99999;
+            end = 99999;
+            isA = true;
+
+            if (!isHydLiftLineStartSet)
+            {
+                hydLiftLineStartPoint = new vec3(clickPoint);
+                isHydLiftLineStartSet = true;
+                oglSelf.Refresh();
+                btnExit.Focus();
+                return true;
+            }
+
+            isHydLiftLineStartSet = false;
+
+            if (glm.Distance(hydLiftLineStartPoint, clickPoint) < 0.5)
+            {
+                FormDialog.Show("Line Error", "Start Point = End Point ", DialogSeverity.Error);
+                return true;
+            }
+
+            AddHydLiftLine(hydLiftLineStartPoint, clickPoint);
+            mf.FileSaveHeadLines();
+            FixLabelsCurve();
+            oglSelf.Refresh();
+            btnExit.Focus();
+            return true;
+        }
+
+        private void AddHydLiftLine(vec3 ptA, vec3 ptB)
+        {
+            double lineLength = glm.Distance(ptA, ptB);
+            double abHead = Math.Atan2(ptB.easting - ptA.easting, ptB.northing - ptA.northing);
+            if (abHead < 0) abHead += glm.twoPI;
+
+            mf.hdl.tracksArr.Add(new CHeadPath());
+            mf.hdl.idx = mf.hdl.tracksArr.Count - 1;
+
+            CHeadPath headPath = mf.hdl.tracksArr[mf.hdl.idx];
+            headPath.a_point = -1;
+            headPath.b_point = -1;
+            headPath.lineStartIndex = 0;
+            headPath.trackPts?.Clear();
+
+            ptA.heading = abHead;
+            ptB.heading = abHead;
+
+            int pointCount = Math.Max(1, (int)Math.Ceiling(lineLength));
+            for (int i = 0; i <= pointCount; i++)
+            {
+                double distance = Math.Min(i, lineLength);
+                vec3 ptC = new vec3(ptA)
+                {
+                    easting = (Math.Sin(abHead) * distance) + ptA.easting,
+                    northing = (Math.Cos(abHead) * distance) + ptA.northing,
+                    heading = abHead
+                };
+                headPath.trackPts.Add(ptC);
+            }
+
+            int ptCnt = headPath.trackPts.Count - 1;
+            headPath.lineEndIndex = ptCnt;
+
+            for (int i = 1; i < 30; i++)
+            {
+                vec3 pnt = new vec3(headPath.trackPts[ptCnt]);
+                pnt.easting += (Math.Sin(pnt.heading) * i);
+                pnt.northing += (Math.Cos(pnt.heading) * i);
+                headPath.trackPts.Add(pnt);
+            }
+
+            vec3 startPoint = new vec3(headPath.trackPts[0]);
+
+            for (int i = 1; i < 30; i++)
+            {
+                vec3 pnt = new vec3(startPoint);
+                pnt.easting -= (Math.Sin(pnt.heading) * i);
+                pnt.northing -= (Math.Cos(pnt.heading) * i);
+                headPath.trackPts.Insert(0, pnt);
+            }
+
+            headPath.lineStartIndex += 29;
+            headPath.lineEndIndex += 29;
+            headPath.name = BuildHeadPathName("AB", "hh:mm:ss");
+            headPath.moveDistance = 0;
+            headPath.mode = (int)TrackMode.AB;
+        }
+
         private void oglSelf_Paint(object sender, PaintEventArgs e)
         {
             oglSelf.MakeCurrent();
@@ -572,22 +681,10 @@ namespace AgOpenGPS
             //translate to that spot in the world
             GL.Translate(-mf.fieldCenterX + sX * mf.maxFieldDistance, -mf.fieldCenterY + sY * mf.maxFieldDistance, 0);
 
-            GL.LineWidth(2);
-
-            for (int j = 0; j < mf.bnd.bndList.Count; j++)
-            {
-                if (j == bndSelect)
-                    GL.Color3(0.8f, 0.8f, 0.8f);
-                else
-                    GL.Color3(0.50f, 0.25f, 0.10f);
-
-                GL.Begin(PrimitiveType.Lines);
-                for (int i = 0; i < mf.bnd.bndList[j].fenceLine.Count; i++)
-                {
-                    GL.Vertex3(mf.bnd.bndList[j].fenceLine[i].easting, mf.bnd.bndList[j].fenceLine[i].northing, 0);
-                }
-                GL.End();
-            }
+            DrawFenceLinesAsBoundary();
+            DrawExistingFieldReferenceLines();
+            DrawHydLiftLinesAsBoundary();
+            DrawHydLiftPreviewLine();
 
             //draw the actual built lines
             //if (start == 99999 && end == 99999)
@@ -618,6 +715,286 @@ namespace AgOpenGPS
             GL.MatrixMode(MatrixMode.Modelview);
         }
 
+        private void DrawFenceLinesAsBoundary()
+        {
+            for (int j = 0; j < mf.bnd.bndList.Count; j++)
+            {
+                if (mf.bnd.bndList[j].fenceLine.Count < 2) continue;
+
+                GL.LineWidth(7);
+                GL.Color3(0.0f, 0.0f, 0.0f);
+                GL.Begin(PrimitiveType.LineLoop);
+                for (int i = 0; i < mf.bnd.bndList[j].fenceLine.Count; i++)
+                {
+                    GL.Vertex3(mf.bnd.bndList[j].fenceLine[i].easting, mf.bnd.bndList[j].fenceLine[i].northing, 0);
+                }
+                GL.End();
+
+                GL.LineWidth(3);
+                if (j == bndSelect)
+                    GL.Color3(0.86f, 0.86f, 0.86f);
+                else
+                    GL.Color3(0.65f, 0.38f, 0.14f);
+
+                GL.Begin(PrimitiveType.LineLoop);
+                for (int i = 0; i < mf.bnd.bndList[j].fenceLine.Count; i++)
+                {
+                    GL.Vertex3(mf.bnd.bndList[j].fenceLine[i].easting, mf.bnd.bndList[j].fenceLine[i].northing, 0);
+                }
+                GL.End();
+            }
+        }
+
+        private void DrawHydLiftLinesAsBoundary()
+        {
+            if (mf.hdl?.tracksArr == null || mf.hdl.tracksArr.Count == 0) return;
+
+            foreach (CHeadPath headPath in mf.hdl.tracksArr)
+            {
+                if (headPath.trackPts == null || headPath.trackPts.Count < 2) continue;
+
+                GL.LineWidth(10);
+                GL.Color3(0.0f, 0.0f, 0.0f);
+                DrawHeadPathWorkingLine(headPath);
+
+                GL.LineWidth(6);
+                GL.Color3(0.05f, 0.85f, 1.0f);
+                DrawHeadPathWorkingLine(headPath);
+
+                int startIndex = GetHeadPathWorkingStartIndex(headPath);
+                int endIndex = GetHeadPathWorkingEndIndex(headPath);
+                GL.PointSize(18);
+                GL.Begin(PrimitiveType.Points);
+                GL.Color3(1.0f, 0.75f, 0.35f);
+                GL.Vertex3(headPath.trackPts[startIndex].easting, headPath.trackPts[startIndex].northing, 0);
+                GL.Color3(0.5f, 0.75f, 1.0f);
+                GL.Vertex3(headPath.trackPts[endIndex].easting, headPath.trackPts[endIndex].northing, 0);
+                GL.End();
+            }
+        }
+
+        private void DrawExistingFieldReferenceLines()
+        {
+            DrawExistingGuidanceLines();
+            DrawExistingTramLines();
+            DrawExistingRecordedPath();
+            DrawExistingFlags();
+        }
+
+        private void DrawExistingGuidanceLines()
+        {
+            if (mf.trk?.gArr == null || mf.trk.gArr.Count == 0) return;
+
+            GL.LineWidth(8);
+            GL.Color3(0.0f, 0.0f, 0.0f);
+            DrawGuidanceLinesPrimitive();
+
+            GL.LineWidth(4);
+            GL.Color3(0.95f, 0.95f, 0.95f);
+            DrawGuidanceLinesPrimitive();
+        }
+
+        private void DrawGuidanceLinesPrimitive()
+        {
+            foreach (CTrk track in mf.trk.gArr)
+            {
+                if (!track.isVisible) continue;
+
+                if (track.mode == TrackMode.AB)
+                {
+                    double heading = track.heading;
+                    vec2 pointA = track.ptA;
+                    vec2 pointB = track.ptB;
+
+                    if (glm.Distance(pointA, pointB) < 0.1)
+                    {
+                        pointA = new vec2(
+                            track.ptA.easting - (Math.Sin(heading) * 2000),
+                            track.ptA.northing - (Math.Cos(heading) * 2000));
+                        pointB = new vec2(
+                            track.ptA.easting + (Math.Sin(heading) * 2000),
+                            track.ptA.northing + (Math.Cos(heading) * 2000));
+                    }
+
+                    GL.Begin(PrimitiveType.Lines);
+                    GL.Vertex3(pointA.easting, pointA.northing, 0);
+                    GL.Vertex3(pointB.easting, pointB.northing, 0);
+                    GL.End();
+                }
+                else if (track.curvePts != null && track.curvePts.Count > 1)
+                {
+                    GL.Begin(PrimitiveType.LineStrip);
+                    foreach (vec3 point in track.curvePts)
+                    {
+                        GL.Vertex3(point.easting, point.northing, 0);
+                    }
+                    GL.End();
+                }
+            }
+        }
+
+        private void DrawExistingTramLines()
+        {
+            if (mf.tram == null) return;
+
+            GL.LineWidth(7);
+            GL.Color3(0.0f, 0.0f, 0.0f);
+            DrawTramLinesPrimitive();
+
+            GL.LineWidth(3);
+            GL.Color3(1.0f, 0.55f, 0.8f);
+            DrawTramLinesPrimitive();
+        }
+
+        private void DrawTramLinesPrimitive()
+        {
+            if (mf.tram.tramList != null)
+            {
+                foreach (List<vec2> tramLine in mf.tram.tramList)
+                {
+                    if (tramLine == null || tramLine.Count < 2) continue;
+
+                    GL.Begin(PrimitiveType.LineStrip);
+                    foreach (vec2 point in tramLine)
+                    {
+                        GL.Vertex3(point.easting, point.northing, 0);
+                    }
+                    GL.End();
+                }
+            }
+
+            DrawVec2LineLoop(mf.tram.tramBndOuterArr);
+            DrawVec2LineLoop(mf.tram.tramBndInnerArr);
+        }
+
+        private void DrawVec2LineLoop(List<vec2> line)
+        {
+            if (line == null || line.Count < 2) return;
+
+            GL.Begin(PrimitiveType.LineLoop);
+            foreach (vec2 point in line)
+            {
+                GL.Vertex3(point.easting, point.northing, 0);
+            }
+            GL.End();
+        }
+
+        private void DrawExistingRecordedPath()
+        {
+            if (mf.recPath?.recList == null || mf.recPath.recList.Count < 2) return;
+
+            GL.LineWidth(7);
+            GL.Color3(0.0f, 0.0f, 0.0f);
+            DrawRecordedPathPrimitive();
+
+            GL.LineWidth(3);
+            GL.Color3(1.0f, 0.92f, 0.2f);
+            DrawRecordedPathPrimitive();
+        }
+
+        private void DrawRecordedPathPrimitive()
+        {
+            GL.Begin(PrimitiveType.LineStrip);
+            foreach (CRecPathPt point in mf.recPath.recList)
+            {
+                GL.Vertex3(point.easting, point.northing, 0);
+            }
+            GL.End();
+        }
+
+        private void DrawExistingFlags()
+        {
+            if (mf.flagPts == null || mf.flagPts.Count == 0) return;
+
+            GL.PointSize(16);
+            GL.Begin(PrimitiveType.Points);
+
+            foreach (CFlag flag in mf.flagPts)
+            {
+                GL.Color3(1.0f, 0.2f, 0.2f);
+                GL.Vertex3(flag.easting, flag.northing, 0);
+            }
+
+            GL.End();
+        }
+
+        private void DrawHydLiftPreviewLine()
+        {
+            if (!isHydLiftLineStartSet || !cboxHydLiftLine.Checked) return;
+
+            Point clientPoint = oglSelf.PointToClient(Cursor.Position);
+            if (clientPoint.X < 0 || clientPoint.Y < 0 || clientPoint.X > oglSelf.Width || clientPoint.Y > oglSelf.Height) return;
+
+            vec3 previewPoint = ScreenToFieldPoint(clientPoint);
+
+            GL.LineWidth(12);
+            GL.Color3(0.0f, 0.0f, 0.0f);
+            DrawTwoPointLine(hydLiftLineStartPoint, previewPoint);
+
+            GL.LineWidth(7);
+            GL.Color3(0.05f, 0.85f, 1.0f);
+            DrawTwoPointLine(hydLiftLineStartPoint, previewPoint);
+        }
+
+        private void DrawTwoPointLine(vec3 startPoint, vec3 endPoint)
+        {
+            GL.Begin(PrimitiveType.Lines);
+            GL.Vertex3(startPoint.easting, startPoint.northing, 0);
+            GL.Vertex3(endPoint.easting, endPoint.northing, 0);
+            GL.End();
+        }
+
+        private void DrawHeadPathWorkingLine(CHeadPath headPath)
+        {
+            int startIndex = GetHeadPathWorkingStartIndex(headPath);
+            int endIndex = GetHeadPathWorkingEndIndex(headPath);
+
+            GL.Begin(PrimitiveType.LineStrip);
+            for (int i = startIndex; i <= endIndex; i++)
+            {
+                vec3 item = headPath.trackPts[i];
+                GL.Vertex3(item.easting, item.northing, 0);
+            }
+            GL.End();
+        }
+
+        private int GetHeadPathWorkingStartIndex(CHeadPath headPath)
+        {
+            if (headPath.lineStartIndex >= 0 && headPath.lineStartIndex < headPath.trackPts.Count) return headPath.lineStartIndex;
+            return 0;
+        }
+
+        private int GetHeadPathWorkingEndIndex(CHeadPath headPath)
+        {
+            if (headPath.lineEndIndex >= 0 && headPath.lineEndIndex < headPath.trackPts.Count) return headPath.lineEndIndex;
+            return headPath.trackPts.Count - 1;
+        }
+
+        private vec3 ScreenToFieldPoint(Point clientPoint)
+        {
+            int wid = oglSelf.Width;
+            int halfWid = oglSelf.Width / 2;
+            double scale = (double)wid * 0.903;
+
+            Point point = new Point
+            {
+                X = clientPoint.X - halfWid,
+                Y = wid - clientPoint.Y - halfWid
+            };
+
+            vec3 plotPt = new vec3
+            {
+                easting = point.X * mf.maxFieldDistance / scale * zoom,
+                northing = point.Y * mf.maxFieldDistance / scale * zoom,
+                heading = 0
+            };
+
+            plotPt.easting += mf.fieldCenterX + mf.maxFieldDistance * -sX;
+            plotPt.northing += mf.fieldCenterY + mf.maxFieldDistance * -sY;
+
+            return plotPt;
+        }
+
         private void DrawBuiltLines()
         {
             if (isLinesVisible && mf.hdl.tracksArr.Count > 0)
@@ -628,6 +1005,8 @@ namespace AgOpenGPS
 
                 for (int i = 0; i < mf.hdl.tracksArr.Count; i++)
                 {
+                    if (mf.hdl.tracksArr[i].IsHydLiftLine) continue;
+
                     if (mf.hdl.tracksArr[i].mode == (int)TrackMode.AB)
                     {
                         GL.Color3(0.973f, 0.9f, 0.10f);
@@ -637,7 +1016,8 @@ namespace AgOpenGPS
                         GL.Color3(0.3f, 0.99f, 0.20f);
                     }
 
-                    GL.Begin(PrimitiveType.Points);
+                    GL.LineWidth(mf.hdl.tracksArr[i].IsHydLiftLine ? 5 : 3);
+                    GL.Begin(PrimitiveType.LineStrip);
                     foreach (vec3 item in mf.hdl.tracksArr[i].trackPts)
                     {
                         GL.Vertex3(item.easting, item.northing, 0);
@@ -647,7 +1027,7 @@ namespace AgOpenGPS
 
                 //GL.Disable(EnableCap.LineStipple);
 
-                if (mf.hdl.idx > -1)
+                if (mf.hdl.idx > -1 && !mf.hdl.tracksArr[mf.hdl.idx].IsHydLiftLine)
                 {
                     GL.LineWidth(6);
                     GL.Color3(1.0f, 0.0f, 1.0f);
@@ -696,6 +1076,7 @@ namespace AgOpenGPS
             GL.Begin(PrimitiveType.Points);
 
             GL.Color3(0, 0, 0);
+            if (isHydLiftLineStartSet) GL.Vertex3(hydLiftLineStartPoint.easting, hydLiftLineStartPoint.northing, 0);
             if (start != 99999) GL.Vertex3(mf.bnd.bndList[bndSelect].fenceLine[start].easting, mf.bnd.bndList[bndSelect].fenceLine[start].northing, 0);
             if (end != 99999) GL.Vertex3(mf.bnd.bndList[bndSelect].fenceLine[end].easting, mf.bnd.bndList[bndSelect].fenceLine[end].northing, 0);
             GL.End();
@@ -704,6 +1085,7 @@ namespace AgOpenGPS
             GL.Begin(PrimitiveType.Points);
 
             GL.Color3(1.0f, 0.75f, 0.350f);
+            if (isHydLiftLineStartSet) GL.Vertex3(hydLiftLineStartPoint.easting, hydLiftLineStartPoint.northing, 0);
             if (start != 99999) GL.Vertex3(mf.bnd.bndList[bndSelect].fenceLine[start].easting, mf.bnd.bndList[bndSelect].fenceLine[start].northing, 0);
 
             GL.Color3(0.5f, 0.75f, 1.0f);
@@ -756,7 +1138,11 @@ namespace AgOpenGPS
         private void btnBndLoop_Click(object sender, EventArgs e)
         {
             //sort the lines
-            mf.hdl.tracksArr.Sort((p, q) => p.a_point.CompareTo(q.a_point));
+            mf.hdl.tracksArr.Sort((p, q) =>
+            {
+                if (p.IsHydLiftLine != q.IsHydLiftLine) return p.IsHydLiftLine ? 1 : -1;
+                return p.a_point.CompareTo(q.a_point);
+            });
             mf.FileSaveHeadLines();
 
             mf.hdl.idx = -1;
@@ -764,22 +1150,24 @@ namespace AgOpenGPS
             //build the headland
             mf.bnd.bndList[0].hdLine?.Clear();
 
-            if (mf.hdl.tracksArr.Count == 2 && TryBuildTwoEndHeadland())
+            List<CHeadPath> headlandTracks = mf.hdl.tracksArr.FindAll(headPath => !headPath.IsHydLiftLine);
+
+            if (headlandTracks.Count == 2 && TryBuildTwoEndHeadland(headlandTracks))
             {
                 FinishBuiltHeadland();
                 return;
             }
 
-            int numOfLines = mf.hdl.tracksArr.Count;
+            int numOfLines = headlandTracks.Count;
             int nextLine = 0;
             crossings.Clear();
 
             int isStart = 0;
 
-            for (int lineNum = 0; lineNum < mf.hdl.tracksArr.Count; lineNum++)
+            for (int lineNum = 0; lineNum < headlandTracks.Count; lineNum++)
             {
                 nextLine = lineNum - 1;
-                if (nextLine < 0) nextLine = mf.hdl.tracksArr.Count - 1;
+                if (nextLine < 0) nextLine = headlandTracks.Count - 1;
 
                 if (nextLine == lineNum)
                 {
@@ -789,12 +1177,12 @@ namespace AgOpenGPS
                     return;
                 }
 
-                for (int i = 0; i < mf.hdl.tracksArr[lineNum].trackPts.Count - 2; i++)
+                for (int i = 0; i < headlandTracks[lineNum].trackPts.Count - 2; i++)
                 {
-                    GeoLineSegment headPathSegment = mf.hdl.tracksArr[lineNum].GetHeadPathSegment(i);
-                    for (int k = 0; k < mf.hdl.tracksArr[nextLine].trackPts.Count - 2; k++)
+                    GeoLineSegment headPathSegment = headlandTracks[lineNum].GetHeadPathSegment(i);
+                    for (int k = 0; k < headlandTracks[nextLine].trackPts.Count - 2; k++)
                     {
-                        GeoLineSegment otherSegment = mf.hdl.tracksArr[nextLine].GetHeadPathSegment(k);
+                        GeoLineSegment otherSegment = headlandTracks[nextLine].GetHeadPathSegment(k);
                         GeoCoord? intersectionPoint = headPathSegment.IntersectionPoint(otherSegment);
                         if (intersectionPoint.HasValue)
                         {
@@ -804,7 +1192,7 @@ namespace AgOpenGPS
                             if (isStart == 2) goto again;
                             nextLine = lineNum + 1;
 
-                            if (nextLine > mf.hdl.tracksArr.Count - 1) nextLine = 0;
+                            if (nextLine > headlandTracks.Count - 1) nextLine = 0;
                         }
                     }
                 }
@@ -813,7 +1201,7 @@ namespace AgOpenGPS
                 isStart = 0;
             }
 
-            if (crossings.Count != mf.hdl.tracksArr.Count * 2)
+            if (crossings.Count != headlandTracks.Count * 2)
             {
                 FormDialog.Show("Crossings Error", "Make sure all ends cross and only once", DialogSeverity.Error);
                 Log.EventWriter("Headache, All ends cross and only once");
@@ -821,13 +1209,13 @@ namespace AgOpenGPS
                 return;
             }
 
-            for (int i = 0; i < mf.hdl.tracksArr.Count; i++)
+            for (int i = 0; i < headlandTracks.Count; i++)
             {
                 int low = crossings[i * 2];
                 int high = crossings[i * 2 + 1];
                 for (int k = low; k < high; k++)
                 {
-                    mf.bnd.bndList[0].hdLine.Add(mf.hdl.tracksArr[i].trackPts[k]);
+                    mf.bnd.bndList[0].hdLine.Add(headlandTracks[i].trackPts[k]);
                 }
             }
 
@@ -853,13 +1241,13 @@ namespace AgOpenGPS
             FinishBuiltHeadland();
         }
 
-        private bool TryBuildTwoEndHeadland()
+        private bool TryBuildTwoEndHeadland(List<CHeadPath> headlandTracks)
         {
             if (mf.bnd.bndList.Count == 0 || mf.bnd.bndList[0].fenceLine.Count < 4) return false;
 
             List<vec3> fenceLine = mf.bnd.bndList[0].fenceLine;
-            CHeadPath firstLine = mf.hdl.tracksArr[0];
-            CHeadPath secondLine = mf.hdl.tracksArr[1];
+            CHeadPath firstLine = headlandTracks[0];
+            CHeadPath secondLine = headlandTracks[1];
 
             if (!IsValidBoundaryIndex(firstLine.a_point, fenceLine.Count) ||
                 !IsValidBoundaryIndex(firstLine.b_point, fenceLine.Count) ||
@@ -1191,6 +1579,7 @@ namespace AgOpenGPS
             //update the arrays
             start = 99999; end = 99999;
             isA = true;
+            isHydLiftLineStartSet = false;
             FixLabelsCurve();
             mf.curve.desList?.Clear();
             zoom = 1;

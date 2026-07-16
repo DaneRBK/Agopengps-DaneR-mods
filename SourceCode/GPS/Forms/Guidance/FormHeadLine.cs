@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Windows.Forms;
 using AgLibrary.Logging;
 using AgOpenGPS.Controls;
@@ -33,6 +34,8 @@ namespace AgOpenGPS
         private double zoom = 1, sX = 0, sY = 0;
 
         public vec3 pint = new vec3(0.0, 1.0, 0.0);
+        private bool isHydLiftLineStartSet;
+        private vec3 hydLiftLineStartPoint = new vec3();
 
         public FormHeadLine(Form callingForm)
         {
@@ -48,6 +51,7 @@ namespace AgOpenGPS
         {
             this.Text = "1: Set distance, 2: Tap Build, 3: Create Clip Lines";
             mf.hdl.idx = -1;
+            mf.FileLoadHeadLines();
             //label3.Text = mf.unitsFtM +"       Tool: ";
 
             lblToolWidth.Text = "( " + mf.unitsFtM + " )           Tool: " + ((mf.tool.width - mf.tool.overlap) * mf.m2FtOrM).ToString("N1") + " " + mf.unitsFtM;
@@ -105,6 +109,7 @@ namespace AgOpenGPS
             btnDeletePoints.Text = gStr.gsReset;
             btnClipLine.Text = gStr.gsClipLine;
             checkBoxZoomIn.Text = gStr.gsZoomIn;
+            cboxHydLiftLine.BringToFront();
         }
 
         private void FormHeadLine_ResizeEnd(object sender, EventArgs e)
@@ -198,6 +203,11 @@ namespace AgOpenGPS
             zoom = 1;
             sX = 0;
             sY = 0;
+
+            if (TryHandleHydLiftLineClick(new vec3(pint)))
+            {
+                return;
+            }
 
             if (isA)
             {
@@ -468,6 +478,8 @@ namespace AgOpenGPS
         }
         private void DrawBuiltLines()
         {
+            DrawHydLiftLines();
+
             //GL.LineWidth(8);
             //GL.Color3(0.03f, 0.0f, 0.150f);
             //GL.Begin(PrimitiveType.LineLoop);
@@ -521,12 +533,127 @@ namespace AgOpenGPS
             }
         }
 
+        private void DrawHydLiftLines()
+        {
+            if (mf.hdl?.tracksArr == null || mf.hdl.tracksArr.Count == 0) return;
+
+            GL.LineWidth(6);
+            GL.Color3(0.05f, 0.85f, 1.0f);
+
+            foreach (CHeadPath headPath in mf.hdl.tracksArr)
+            {
+                if (headPath.trackPts == null || headPath.trackPts.Count < 2) continue;
+
+                GL.Begin(PrimitiveType.LineStrip);
+                foreach (vec3 item in headPath.trackPts)
+                {
+                    GL.Vertex3(item.easting, item.northing, 0);
+                }
+                GL.End();
+            }
+        }
+
+        private bool TryHandleHydLiftLineClick(vec3 clickPoint)
+        {
+            if (!cboxHydLiftLine.Checked)
+            {
+                isHydLiftLineStartSet = false;
+                return false;
+            }
+
+            start = 99999;
+            end = 99999;
+            isA = true;
+            sliceArr?.Clear();
+
+            if (!isHydLiftLineStartSet)
+            {
+                hydLiftLineStartPoint = new vec3(clickPoint);
+                isHydLiftLineStartSet = true;
+                btnExit.Focus();
+                return true;
+            }
+
+            isHydLiftLineStartSet = false;
+
+            if (glm.Distance(hydLiftLineStartPoint, clickPoint) < 0.5)
+            {
+                FormDialog.Show("Line Error", "Start Point = End Point ", DialogSeverity.Error);
+                return true;
+            }
+
+            AddHydLiftLine(hydLiftLineStartPoint, clickPoint);
+            mf.FileSaveHeadLines();
+            btnExit.Focus();
+            return true;
+        }
+
+        private void AddHydLiftLine(vec3 ptA, vec3 ptB)
+        {
+            double lineLength = glm.Distance(ptA, ptB);
+            double abHead = Math.Atan2(ptB.easting - ptA.easting, ptB.northing - ptA.northing);
+            if (abHead < 0) abHead += glm.twoPI;
+
+            mf.hdl.tracksArr.Add(new CHeadPath());
+            mf.hdl.idx = mf.hdl.tracksArr.Count - 1;
+
+            CHeadPath headPath = mf.hdl.tracksArr[mf.hdl.idx];
+            headPath.a_point = -1;
+            headPath.b_point = -1;
+            headPath.lineStartIndex = 0;
+            headPath.trackPts?.Clear();
+
+            ptA.heading = abHead;
+            ptB.heading = abHead;
+
+            int pointCount = Math.Max(1, (int)Math.Ceiling(lineLength));
+            for (int i = 0; i <= pointCount; i++)
+            {
+                double distance = Math.Min(i, lineLength);
+                vec3 ptC = new vec3(ptA)
+                {
+                    easting = (Math.Sin(abHead) * distance) + ptA.easting,
+                    northing = (Math.Cos(abHead) * distance) + ptA.northing,
+                    heading = abHead
+                };
+                headPath.trackPts.Add(ptC);
+            }
+
+            int ptCnt = headPath.trackPts.Count - 1;
+            headPath.lineEndIndex = ptCnt;
+
+            for (int i = 1; i < 30; i++)
+            {
+                vec3 pnt = new vec3(headPath.trackPts[ptCnt]);
+                pnt.easting += (Math.Sin(pnt.heading) * i);
+                pnt.northing += (Math.Cos(pnt.heading) * i);
+                headPath.trackPts.Add(pnt);
+            }
+
+            vec3 startPoint = new vec3(headPath.trackPts[0]);
+
+            for (int i = 1; i < 30; i++)
+            {
+                vec3 pnt = new vec3(startPoint);
+                pnt.easting -= (Math.Sin(pnt.heading) * i);
+                pnt.northing -= (Math.Cos(pnt.heading) * i);
+                headPath.trackPts.Insert(0, pnt);
+            }
+
+            headPath.lineStartIndex += 29;
+            headPath.lineEndIndex += 29;
+            headPath.name = CHeadPath.HydLiftLinePrefix + " Hose " + DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+            headPath.moveDistance = 0;
+            headPath.mode = (int)TrackMode.AB;
+        }
+
         private void DrawABTouchLine()
         {
             GL.PointSize(24);
             GL.Begin(PrimitiveType.Points);
 
             GL.Color3(0, 0, 0);
+            if (isHydLiftLineStartSet) GL.Vertex3(hydLiftLineStartPoint.easting, hydLiftLineStartPoint.northing, 0);
             if (start != 99999) GL.Vertex3(mf.bnd.bndList[bndSelect].fenceLine[start].easting, mf.bnd.bndList[bndSelect].fenceLine[start].northing, 0);
             if (end != 99999) GL.Vertex3(mf.bnd.bndList[bndSelect].fenceLine[end].easting, mf.bnd.bndList[bndSelect].fenceLine[end].northing, 0);
             GL.End();
@@ -535,6 +662,7 @@ namespace AgOpenGPS
             GL.Begin(PrimitiveType.Points);
 
             GL.Color3(1.0f, 0.75f, 0.350f);
+            if (isHydLiftLineStartSet) GL.Vertex3(hydLiftLineStartPoint.easting, hydLiftLineStartPoint.northing, 0);
             if (start != 99999) GL.Vertex3(mf.bnd.bndList[bndSelect].fenceLine[start].easting, mf.bnd.bndList[bndSelect].fenceLine[start].northing, 0);
 
             GL.Color3(0.5f, 0.75f, 1.0f);

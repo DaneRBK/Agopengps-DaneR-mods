@@ -12,6 +12,10 @@ namespace AgOpenGPS
         public vec2? HeadlandNearestPoint { get; private set; } = null;
         public double? HeadlandDistance { get; private set; } = null;
 
+        private vec2? lastHydLiftToolPoint;
+        private vec2 hydLiftLineCrossingPoint;
+        private bool isHydLiftLineLowerDelayActive;
+
         public void SetHydPosition()
         {
             if (mf.vehicle.isHydLiftOn && mf.avgSpeed > 0.2 && !mf.isReverse)
@@ -35,6 +39,138 @@ namespace AgOpenGPS
                     }
                 }
             }
+        }
+
+        public bool HasHydLiftLines()
+        {
+            if (mf.hdl?.tracksArr == null) return false;
+
+            foreach (CHeadPath headPath in mf.hdl.tracksArr)
+            {
+                if (headPath.trackPts != null && headPath.trackPts.Count > 1)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsHydLiftLineRaised(vec2 toolPoint, vec2 lookAheadPoint)
+        {
+            return IsHydLiftLineRaised(toolPoint, lookAheadPoint, toolPoint, lookAheadPoint, toolPoint, lookAheadPoint);
+        }
+
+        public bool IsHydLiftLineRaised(vec2 toolPoint, vec2 lookAheadPoint, vec2 leftPoint, vec2 lookAheadLeftPoint, vec2 rightPoint, vec2 lookAheadRightPoint)
+        {
+            if (!HasHydLiftLines())
+            {
+                ResetHydLiftLineState();
+                return false;
+            }
+
+            bool isApproachingHydLine =
+                DoesSegmentIntersectHydLiftLine(toolPoint, lookAheadPoint, out _) ||
+                DoesSegmentIntersectHydLiftLine(leftPoint, lookAheadLeftPoint, out _) ||
+                DoesSegmentIntersectHydLiftLine(rightPoint, lookAheadRightPoint, out _);
+            bool hasCrossedHydLine = false;
+
+            if (lastHydLiftToolPoint.HasValue)
+            {
+                hasCrossedHydLine = DoesSegmentIntersectHydLiftLine(lastHydLiftToolPoint.Value, toolPoint, out vec2 crossingPoint);
+                if (hasCrossedHydLine)
+                {
+                    hydLiftLineCrossingPoint = crossingPoint;
+                    isHydLiftLineLowerDelayActive = true;
+                }
+            }
+
+            lastHydLiftToolPoint = toolPoint;
+
+            if (isApproachingHydLine || hasCrossedHydLine) return true;
+
+            if (isHydLiftLineLowerDelayActive)
+            {
+                double lowerDelayDistance = mf.vehicle.hydLiftLowerAfterEntryDistance;
+                if (lowerDelayDistance <= 0)
+                {
+                    isHydLiftLineLowerDelayActive = false;
+                    return false;
+                }
+
+                double distanceFromCrossing = Distance(toolPoint, hydLiftLineCrossingPoint);
+                if (distanceFromCrossing < lowerDelayDistance) return true;
+
+                isHydLiftLineLowerDelayActive = false;
+            }
+
+            return false;
+        }
+
+        private void ResetHydLiftLineState()
+        {
+            lastHydLiftToolPoint = null;
+            isHydLiftLineLowerDelayActive = false;
+        }
+
+        private bool DoesSegmentIntersectHydLiftLine(vec2 startPoint, vec2 endPoint, out vec2 intersectionPoint)
+        {
+            intersectionPoint = new vec2();
+
+            if (mf.hdl?.tracksArr == null) return false;
+
+            foreach (CHeadPath headPath in mf.hdl.tracksArr)
+            {
+                if (headPath.trackPts == null || headPath.trackPts.Count < 2) continue;
+
+                for (int i = 0; i < headPath.trackPts.Count - 1; i++)
+                {
+                    vec2 lineStart = headPath.trackPts[i].ToVec2();
+                    vec2 lineEnd = headPath.trackPts[i + 1].ToVec2();
+
+                    if (TrySegmentIntersection(startPoint, endPoint, lineStart, lineEnd, out intersectionPoint))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private bool TrySegmentIntersection(vec2 a, vec2 b, vec2 c, vec2 d, out vec2 intersectionPoint)
+        {
+            intersectionPoint = new vec2();
+
+            double rE = b.easting - a.easting;
+            double rN = b.northing - a.northing;
+            double sE = d.easting - c.easting;
+            double sN = d.northing - c.northing;
+            double denominator = Cross(rE, rN, sE, sN);
+
+            if (Math.Abs(denominator) < 0.000001) return false;
+
+            double cToAE = c.easting - a.easting;
+            double cToAN = c.northing - a.northing;
+            double t = Cross(cToAE, cToAN, sE, sN) / denominator;
+            double u = Cross(cToAE, cToAN, rE, rN) / denominator;
+
+            if (t < 0 || t > 1 || u < 0 || u > 1) return false;
+
+            intersectionPoint = new vec2(a.easting + (t * rE), a.northing + (t * rN));
+            return true;
+        }
+
+        private double Cross(double aE, double aN, double bE, double bN)
+        {
+            return (aE * bN) - (aN * bE);
+        }
+
+        private double Distance(vec2 a, vec2 b)
+        {
+            double easting = a.easting - b.easting;
+            double northing = a.northing - b.northing;
+            return Math.Sqrt((easting * easting) + (northing * northing));
         }
 
         public void WhereAreToolCorners()

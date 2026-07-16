@@ -149,6 +149,7 @@ namespace AgOpenGPS
 
             // --- Headlands ---
             TryRun("Headland.txt", LoadCriticality.Optional, () => HeadlandFiles.AttachLoad(dir, boundaries));
+            FileLoadHeadLines();
 
             // --- Tram ---
             if (TryLoad("Tram.txt", LoadCriticality.Optional, () => TramFiles.Load(dir), out var tramData))
@@ -364,6 +365,7 @@ namespace AgOpenGPS
                 && bnd.bndList.Count > 0
                 && bnd.bndList[0]?.hdLine != null
                 && bnd.bndList[0].hdLine.Count > 0;
+            bool hasHydLiftLines = bnd?.HasHydLiftLines() == true;
 
             bnd.isHeadlandOn = hasHeadland;
             btnHeadlandOnOff.Visible = hasHeadland;
@@ -372,8 +374,8 @@ namespace AgOpenGPS
                 : Properties.Resources.HeadlandOff;
 
             int sett = Properties.ToolSettings.Default.setArdMac_setting0;
-            btnHydLift.Visible = (((sett & 2) == 2) && hasHeadland);
-            if (hasHeadland) btnHydLift.Image = Properties.Resources.HydraulicLiftOff;
+            btnHydLift.Visible = (((sett & 2) == 2) && (hasHeadland || hasHydLiftLines));
+            if (hasHeadland || hasHydLiftLines) btnHydLift.Image = Properties.Resources.HydraulicLiftOff;
 
             // RecPath
             panelDrag.Visible = recPath?.recList != null && recPath.recList.Count > 0;

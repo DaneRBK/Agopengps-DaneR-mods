@@ -20,6 +20,7 @@ namespace AgOpenGPS
         public double AutoRollLearnMeasuredErrorCm => autoRollLearnMeasuredErrorMeters * 100.0;
         public double AutoRollLearnSuggestedCorrectionDeg => autoRollLearnSuggestedCorrectionDeg;
         public double AutoRollLearnConfidence => autoRollLearnConfidence;
+        public double AutoRollLearnRequiredConfidence => Properties.VehicleSettings.Default.setIMU_autoRollLearnMinConfidence;
         public string AutoRollLearnStatus => autoRollLearnStatus;
         public string AutoRollLearnLastAction => autoRollLearnLastAction;
         public bool AutoRollLearnHasSuggestion => Math.Abs(autoRollLearnSuggestedCorrectionDeg) >= 0.005 && autoRollLearnConfidence > 0.0;
@@ -111,6 +112,11 @@ namespace AgOpenGPS
 
             AutoRollLearnPass pass = GetOrCreateAutoRollLearnPass();
             AddAutoRollLearnSample(pass);
+            if (TryEvaluateAutoRollLearnPass(pass, true))
+            {
+                return;
+            }
+
             autoRollLearnStatus = "Learning lane " + pass.Lane.ToString(CultureInfo.CurrentCulture)
                 + " " + (pass.Direction > 0 ? "forward" : "reverse")
                 + ", " + pass.Length.ToString("N1", CultureInfo.CurrentCulture)
@@ -268,6 +274,11 @@ namespace AgOpenGPS
 
         private void EvaluateAutoRollLearnPass(AutoRollLearnPass pass)
         {
+            TryEvaluateAutoRollLearnPass(pass, false);
+        }
+
+        private bool TryEvaluateAutoRollLearnPass(AutoRollLearnPass pass, bool isLive)
+        {
             AutoRollLearnPass neighbor = autoRollLearnPasses
                 .Where(p => p != pass
                     && p.TrackIndex == pass.TrackIndex
@@ -278,16 +289,24 @@ namespace AgOpenGPS
 
             if (neighbor == null)
             {
-                autoRollLearnStatus = "Pass saved. Waiting for adjacent opposite pass.";
-                return;
+                if (!isLive)
+                {
+                    autoRollLearnStatus = "Pass saved. Waiting for adjacent opposite pass.";
+                }
+
+                return false;
             }
 
             double alongOverlap = GetAutoRollLearnAlongOverlap(pass, neighbor);
             double minNeeded = Math.Max(10.0, Properties.VehicleSettings.Default.setIMU_autoRollLearnMinPassLength * 0.5);
             if (alongOverlap < minNeeded)
             {
-                autoRollLearnStatus = "Adjacent pass overlap too short.";
-                return;
+                if (!isLive)
+                {
+                    autoRollLearnStatus = "Adjacent pass overlap too short.";
+                }
+
+                return false;
             }
 
             double firstMin = pass.AverageMinEdge;
@@ -314,13 +333,15 @@ namespace AgOpenGPS
             autoRollLearnMeasuredErrorMeters = measuredError;
             autoRollLearnSuggestedCorrectionDeg = correction;
             autoRollLearnConfidence = ClampAutoRollLearn(55.0 + Math.Min(35.0, alongOverlap) + Math.Min(10.0, pass.Samples + neighbor.Samples) * 0.5, 0.0, 95.0);
-            autoRollLearnStatus = (measuredError >= 0.0 ? "Overlap " : "Gap ")
+            autoRollLearnStatus = (isLive ? "Live " : string.Empty)
+                + (measuredError >= 0.0 ? "overlap " : "gap ")
                 + Math.Abs(measuredError * 100.0).ToString("N1", CultureInfo.CurrentCulture)
                 + " cm, roll suggestion "
                 + correction.ToString("N3", CultureInfo.CurrentCulture)
                 + " deg.";
 
             TryAutoApplyAutoRollLearn();
+            return true;
         }
 
         private void TryAutoApplyAutoRollLearn()

@@ -70,22 +70,12 @@ namespace AgOpenGPS
         {
             if (lblHardwareMessage == null) return;
 
-            if (IsBodyLineHoldActing && !IsXteGuardActing)
-            {
-                lblHardwareMessage.Text = "BODY LINE HOLD ACTIVE   "
-                    + bodyLineHoldFilteredCorrectionDeg.ToString("N2")
-                    + " deg";
-                lblHardwareMessage.BackColor = Color.FromArgb(90, 190, 255);
-                lblHardwareMessage.ForeColor = Color.Black;
-                lblHardwareMessage.Visible = true;
-                lblHardwareMessage.BringToFront();
-                bodyLineHoldNotificationVisible = true;
-                return;
-            }
+            if (IsBodyLineHoldActing && !IsXteGuardActing) return;
 
             if (bodyLineHoldNotificationVisible && !IsXteGuardActing)
             {
                 lblHardwareMessage.Visible = false;
+                lblHardwareMessage.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
                 bodyLineHoldNotificationVisible = false;
             }
         }

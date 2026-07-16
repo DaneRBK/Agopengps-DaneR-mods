@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 using AgOpenGPS.Core.Translations;
 using AgOpenGPS.Helpers;
@@ -39,6 +40,7 @@ namespace AgOpenGPS
             buttonYouTube.Text = gStr.gsYouTubeTutorials;
 
             labelVersionActual.Text = Program.SemVer;
+            LoadDaneRModsLogo();
 
             if (!ScreenHelper.IsOnScreen(Bounds))
             {
@@ -60,6 +62,22 @@ namespace AgOpenGPS
         private void buttonYouTube_Click(object sender, EventArgs e)
         {
             Process.Start(YouTubeUrl);
+        }
+
+        private void LoadDaneRModsLogo()
+        {
+            string logoPath = Path.Combine(Application.StartupPath, "Resources", "DaneRModsLogo.png");
+            if (!File.Exists(logoPath))
+            {
+                pictureBoxDaneRModsLogo.Visible = false;
+                return;
+            }
+
+            using (var stream = new MemoryStream(File.ReadAllBytes(logoPath)))
+            using (var image = Image.FromStream(stream))
+            {
+                pictureBoxDaneRModsLogo.Image = new Bitmap(image);
+            }
         }
     }
 }

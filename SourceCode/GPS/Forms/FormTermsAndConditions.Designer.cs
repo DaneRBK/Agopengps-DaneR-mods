@@ -40,7 +40,9 @@
             this.pictureBoxWarning = new System.Windows.Forms.PictureBox();
             this.labelVersion = new System.Windows.Forms.Label();
             this.labelVersionActual = new System.Windows.Forms.Label();
+            this.pictureBoxDaneRModsLogo = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxWarning)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxDaneRModsLogo)).BeginInit();
             this.SuspendLayout();
             // 
             // labelTermsAndConditions
@@ -143,7 +145,7 @@
             this.labelDisagree.Font = new System.Drawing.Font("Tahoma", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.labelDisagree.Image = global::AgOpenGPS.Properties.Resources.Cancel64;
             this.labelDisagree.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
-            this.labelDisagree.Location = new System.Drawing.Point(685, 535);
+            this.labelDisagree.Location = new System.Drawing.Point(30, 535);
             this.labelDisagree.Name = "labelDisagree";
             this.labelDisagree.Size = new System.Drawing.Size(135, 90);
             this.labelDisagree.TabIndex = 39;
@@ -201,12 +203,23 @@
             this.labelVersionActual.Text = "x.y.z";
             this.labelVersionActual.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
+            // pictureBoxDaneRModsLogo
+            // 
+            this.pictureBoxDaneRModsLogo.BackColor = System.Drawing.Color.Transparent;
+            this.pictureBoxDaneRModsLogo.Location = new System.Drawing.Point(25, 15);
+            this.pictureBoxDaneRModsLogo.Name = "pictureBoxDaneRModsLogo";
+            this.pictureBoxDaneRModsLogo.Size = new System.Drawing.Size(240, 120);
+            this.pictureBoxDaneRModsLogo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBoxDaneRModsLogo.TabIndex = 151;
+            this.pictureBoxDaneRModsLogo.TabStop = false;
+            // 
             // FormTermsAndConditions
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.Lavender;
             this.ClientSize = new System.Drawing.Size(1000, 640);
+            this.Controls.Add(this.pictureBoxDaneRModsLogo);
             this.Controls.Add(this.pictureBoxWarning);
             this.Controls.Add(this.labelTermsAndConditions);
             this.Controls.Add(this.labelVersion);
@@ -224,6 +237,7 @@
             this.TopMost = true;
             this.Load += new System.EventHandler(this.Form_About_Load);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxWarning)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxDaneRModsLogo)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -241,5 +255,6 @@
         private System.Windows.Forms.PictureBox pictureBoxWarning;
         private System.Windows.Forms.Label labelVersion;
         private System.Windows.Forms.Label labelVersionActual;
+        private System.Windows.Forms.PictureBox pictureBoxDaneRModsLogo;
     }
 }

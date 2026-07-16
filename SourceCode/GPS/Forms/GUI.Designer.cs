@@ -288,6 +288,7 @@ namespace AgOpenGPS
 
                 lblClock.Text = DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture);
                 UpdateFixRollButtonVisibility();
+                UpdateWasZeroStatusLabel();
 
                 //counter used for saving field in background - is actually 30 second
                 fileSaveCounter++;
@@ -815,6 +816,7 @@ namespace AgOpenGPS
                 bool isBnd = bnd.bndList.Count > 0;
                 if (!isBnd) isHdl = isBnd;
                 else isHdl = bnd.bndList[0].hdLine.Count > 0;
+                bool hasHydLiftLines = bnd.HasHydLiftLines();
 
                 bool istram = (tram.tramList.Count + tram.tramBndOuterArr.Count) > 0;
 
@@ -854,7 +856,7 @@ namespace AgOpenGPS
                 btnHeadlandOnOff.Visible = isHdl;
 
                 int sett = Properties.ToolSettings.Default.setArdMac_setting0;
-                btnHydLift.Visible = (((sett & 2) == 2) && isHdl);
+                btnHydLift.Visible = (((sett & 2) == 2) && (isHdl || hasHydLiftLines));
 
                 cboxIsSectionControlled.Visible = isHdl;
 

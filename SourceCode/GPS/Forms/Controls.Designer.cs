@@ -93,10 +93,11 @@ namespace AgOpenGPS
             {
                 if (trk.idx == -1)
                 {
-                    //find index of first visible track
-                    trk.idx = trk.gArr.FindIndex(track => track.isVisible);
+                    // Prefer the longest visible track so boundary-generated lines start lengthwise.
+                    trk.idx = trk.FindLongestVisibleTrack();
 
-                    //otherwise default to index 0
+                    //otherwise default to first visible track, then index 0
+                    if (trk.idx == -1) trk.idx = trk.gArr.FindIndex(track => track.isVisible);
                     if (trk.idx == -1) trk.idx = 0;
 
                     EnableYouTurnButtons();
@@ -527,6 +528,8 @@ namespace AgOpenGPS
             const double minSegmentLengthMeters = 5.0;
             int created = 0;
             int startIndex = trk.gArr.Count;
+            int longestCreatedIndex = -1;
+            double longestCreatedLength = double.MinValue;
 
             for (int bndIndex = 0; bndIndex < bnd.bndList.Count; bndIndex++)
             {
@@ -558,13 +561,21 @@ namespace AgOpenGPS
                             + " " + Math.Round(glm.toDegrees(heading), 1).ToString(CultureInfo.InvariantCulture) + "\u00B0"
                     });
 
+                    int createdIndex = trk.gArr.Count - 1;
+                    double createdLength = CTrack.GetTrackLength(trk.gArr[createdIndex]);
+                    if (createdLength > longestCreatedLength)
+                    {
+                        longestCreatedLength = createdLength;
+                        longestCreatedIndex = createdIndex;
+                    }
+
                     created++;
                 }
             }
 
             if (created == 0) return 0;
 
-            trk.idx = startIndex;
+            trk.idx = longestCreatedIndex >= 0 ? longestCreatedIndex : startIndex;
             ABLine.isABValid = false;
             ABLine.BuildCurrentABLineList(pivotAxlePos);
             EnableYouTurnButtons();
@@ -2300,9 +2311,10 @@ namespace AgOpenGPS
                 btnHeadlandOnOff.Image = Properties.Resources.HeadlandOff;
             }
 
-            if (vehicle.isHydLiftOn && !bnd.isHeadlandOn) vehicle.isHydLiftOn = false;
+            bool hasHydLiftLines = bnd.HasHydLiftLines();
+            if (vehicle.isHydLiftOn && !bnd.isHeadlandOn && !hasHydLiftLines) vehicle.isHydLiftOn = false;
 
-            if (!bnd.isHeadlandOn)
+            if (!bnd.isHeadlandOn && !hasHydLiftLines)
             {
                 p_239.pgn[p_239.hydLift] = 0;
                 btnHydLift.Image = Properties.Resources.HydraulicLiftOff;
@@ -2320,7 +2332,7 @@ namespace AgOpenGPS
         }
         private void btnHydLift_Click(object sender, EventArgs e)
         {
-            if (bnd.isHeadlandOn)
+            if (bnd.isHeadlandOn || bnd.HasHydLiftLines())
             {
                 vehicle.isHydLiftOn = !vehicle.isHydLiftOn;
                 if (vehicle.isHydLiftOn)

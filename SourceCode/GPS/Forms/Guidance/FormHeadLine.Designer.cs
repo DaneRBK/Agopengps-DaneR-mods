@@ -32,6 +32,7 @@
             this.oglSelf = new OpenTK.GLControl();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.headingGroupBox = new System.Windows.Forms.GroupBox();
+            this.cboxHydLiftLine = new System.Windows.Forms.CheckBox();
             this.lblToolWidth = new System.Windows.Forms.Label();
             this.cboxToolWidths = new System.Windows.Forms.ComboBox();
             this.tlp1 = new System.Windows.Forms.TableLayoutPanel();
@@ -85,6 +86,23 @@
             this.headingGroupBox.Size = new System.Drawing.Size(102, 229);
             this.headingGroupBox.TabIndex = 438;
             this.headingGroupBox.TabStop = false;
+            //
+            // cboxHydLiftLine
+            //
+            this.cboxHydLiftLine.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.cboxHydLiftLine.Appearance = System.Windows.Forms.Appearance.Button;
+            this.cboxHydLiftLine.BackColor = System.Drawing.Color.AliceBlue;
+            this.cboxHydLiftLine.FlatAppearance.CheckedBackColor = System.Drawing.Color.LightGreen;
+            this.cboxHydLiftLine.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.cboxHydLiftLine.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.cboxHydLiftLine.ForeColor = System.Drawing.Color.Black;
+            this.cboxHydLiftLine.Location = new System.Drawing.Point(899, 237);
+            this.cboxHydLiftLine.Name = "cboxHydLiftLine";
+            this.cboxHydLiftLine.Size = new System.Drawing.Size(102, 64);
+            this.cboxHydLiftLine.TabIndex = 566;
+            this.cboxHydLiftLine.Text = "Hose";
+            this.cboxHydLiftLine.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.cboxHydLiftLine.UseVisualStyleBackColor = false;
             // 
             // lblToolWidth
             // 
@@ -476,6 +494,7 @@
             this.ClientSize = new System.Drawing.Size(1006, 726);
             this.ControlBox = false;
             this.Controls.Add(this.tlp1);
+            this.Controls.Add(this.cboxHydLiftLine);
             this.Controls.Add(this.headingGroupBox);
             this.Controls.Add(this.oglSelf);
             this.ForeColor = System.Drawing.Color.Black;
@@ -503,6 +522,7 @@
         private System.Windows.Forms.Button btnBLength;
         private System.Windows.Forms.Button btnALength;
         private System.Windows.Forms.GroupBox headingGroupBox;
+        private System.Windows.Forms.CheckBox cboxHydLiftLine;
         private System.Windows.Forms.RadioButton rbtnLine;
         private System.Windows.Forms.RadioButton rbtnCurve;
         private NudlessNumericUpDown nudSetDistance;

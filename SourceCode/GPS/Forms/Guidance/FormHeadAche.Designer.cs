@@ -33,6 +33,7 @@
             this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.headingGroupBox = new System.Windows.Forms.GroupBox();
             this.rbtnLine = new System.Windows.Forms.RadioButton();
+            this.cboxHydLiftLine = new System.Windows.Forms.CheckBox();
             this.rbtnCurve = new System.Windows.Forms.RadioButton();
             this.cboxToolWidths = new System.Windows.Forms.ComboBox();
             this.lblToolWidth = new System.Windows.Forms.Label();
@@ -93,18 +94,35 @@
             this.rbtnLine.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.rbtnLine.Appearance = System.Windows.Forms.Appearance.Button;
             this.rbtnLine.BackColor = System.Drawing.Color.AliceBlue;
-            this.tlp1.SetColumnSpan(this.rbtnLine, 3);
+            this.tlp1.SetColumnSpan(this.rbtnLine, 2);
             this.rbtnLine.FlatAppearance.CheckedBackColor = System.Drawing.Color.PaleTurquoise;
             this.rbtnLine.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.rbtnLine.Font = new System.Drawing.Font("Tahoma", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.rbtnLine.ForeColor = System.Drawing.Color.Black;
             this.rbtnLine.Image = global::AgOpenGPS.Properties.Resources.ABTrackAB;
-            this.rbtnLine.Location = new System.Drawing.Point(163, 192);
+            this.rbtnLine.Location = new System.Drawing.Point(156, 192);
             this.rbtnLine.Name = "rbtnLine";
-            this.rbtnLine.Size = new System.Drawing.Size(120, 72);
+            this.rbtnLine.Size = new System.Drawing.Size(81, 72);
             this.rbtnLine.TabIndex = 2;
             this.rbtnLine.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.rbtnLine.UseVisualStyleBackColor = false;
+            //
+            // cboxHydLiftLine
+            //
+            this.cboxHydLiftLine.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.cboxHydLiftLine.Appearance = System.Windows.Forms.Appearance.Button;
+            this.cboxHydLiftLine.BackColor = System.Drawing.Color.AliceBlue;
+            this.cboxHydLiftLine.FlatAppearance.CheckedBackColor = System.Drawing.Color.LightGreen;
+            this.cboxHydLiftLine.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.cboxHydLiftLine.Font = new System.Drawing.Font("Tahoma", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.cboxHydLiftLine.ForeColor = System.Drawing.Color.Black;
+            this.cboxHydLiftLine.Location = new System.Drawing.Point(248, 192);
+            this.cboxHydLiftLine.Name = "cboxHydLiftLine";
+            this.cboxHydLiftLine.Size = new System.Drawing.Size(48, 72);
+            this.cboxHydLiftLine.TabIndex = 566;
+            this.cboxHydLiftLine.Text = "Hose";
+            this.cboxHydLiftLine.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.cboxHydLiftLine.UseVisualStyleBackColor = false;
             // 
             // rbtnCurve
             // 
@@ -453,6 +471,7 @@
             this.tlp1.Controls.Add(this.btnBLength, 0, 0);
             this.tlp1.Controls.Add(this.rbtnCurve, 0, 2);
             this.tlp1.Controls.Add(this.rbtnLine, 3, 2);
+            this.tlp1.Controls.Add(this.cboxHydLiftLine, 5, 2);
             this.tlp1.Controls.Add(this.btnBShrink, 2, 0);
             this.tlp1.Controls.Add(this.btnAShrink, 2, 1);
             this.tlp1.Controls.Add(this.cboxToolWidths, 4, 3);
@@ -563,6 +582,7 @@
         private System.Windows.Forms.Button btnALength;
         private System.Windows.Forms.GroupBox headingGroupBox;
         private System.Windows.Forms.RadioButton rbtnLine;
+        private System.Windows.Forms.CheckBox cboxHydLiftLine;
         private System.Windows.Forms.RadioButton rbtnCurve;
         private NudlessNumericUpDown nudSetDistance;
         private System.Windows.Forms.Button btnDeleteHeadland;

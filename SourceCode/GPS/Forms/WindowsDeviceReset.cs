@@ -16,9 +16,16 @@ namespace AgOpenGPS
         private Button btnObstacleMarker;
         private Button btnFixRoll;
         private Button btnMarkedEdgesBoundary;
+        private Panel panelWasZeroStatus;
+        private Label lblWasZeroStatus;
+        private int lastDisplayedWasOffset;
+        private int lastWasOffsetDelta;
+        private DateTime wasOffsetHighlightUntilUtc = DateTime.MinValue;
 
         private void InitializeWindowsDeviceResetButton()
         {
+            lastDisplayedWasOffset = Properties.VehicleSettings.Default.setAS_wasOffset;
+
             btnWindowsDeviceReset = new Button
             {
                 Name = "btnWindowsDeviceReset",
@@ -129,16 +136,40 @@ namespace AgOpenGPS
             btnMarkedEdgesBoundary.FlatAppearance.BorderSize = 2;
             btnMarkedEdgesBoundary.Click += btnMarkedEdgesBoundary_Click;
 
+            panelWasZeroStatus = new Panel
+            {
+                Name = "panelWasZeroStatus",
+                Width = 72,
+                Height = 70,
+                BackColor = Color.WhiteSmoke,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            lblWasZeroStatus = new Label
+            {
+                Name = "lblWasZeroStatus",
+                Text = "WAS 0\r\n" + FormatWasOffsetDegrees(lastDisplayedWasOffset),
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(255, 232, 80),
+                ForeColor = Color.Black,
+                Font = new Font("Tahoma", 7.25F, FontStyle.Bold),
+                Padding = new Padding(1, 2, 1, 1),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            panelWasZeroStatus.Controls.Add(lblWasZeroStatus);
+
             Controls.Add(btnWindowsDeviceReset);
             Controls.Add(btnFieldsMap);
             Controls.Add(btnDxfMap);
             Controls.Add(btnObstacleMarker);
             Controls.Add(btnFixRoll);
+            Controls.Add(panelWasZeroStatus);
             btnWindowsDeviceReset.BringToFront();
             btnFieldsMap.BringToFront();
             btnDxfMap.BringToFront();
             btnObstacleMarker.BringToFront();
             btnFixRoll.BringToFront();
+            panelWasZeroStatus.BringToFront();
             PositionWindowsDeviceResetButton();
 
             Resize += (_, __) => PositionWindowsDeviceResetButton();
@@ -175,6 +206,8 @@ namespace AgOpenGPS
             btnFixRoll.Left = Math.Min(ClientSize.Width - btnFixRoll.Width, btnObstacleMarker.Right + 8);
             btnFixRoll.Top = 4;
             btnFixRoll.BringToFront();
+
+            PositionWasZeroStatusLabel();
         }
 
         private void UpdateFixRollButtonVisibility()
@@ -182,7 +215,7 @@ namespace AgOpenGPS
             if (btnFixRoll == null) return;
 
             bool shouldShow = AutoRollLearnHasSuggestion
-                && AutoRollLearnConfidence >= 75.0;
+                && AutoRollLearnConfidence >= AutoRollLearnRequiredConfidence;
 
             btnFixRoll.Visible = shouldShow;
             btnFixRoll.Enabled = shouldShow;
@@ -191,6 +224,60 @@ namespace AgOpenGPS
                 btnFixRoll.Text = "FIX ROLL\r\n" + AutoRollLearnSuggestedCorrectionDeg.ToString("N3");
                 btnFixRoll.BringToFront();
             }
+
+            PositionWindowsDeviceResetButton();
+        }
+
+        private void UpdateWasZeroStatusLabel()
+        {
+            if (lblWasZeroStatus == null) return;
+
+            int currentOffset = Properties.VehicleSettings.Default.setAS_wasOffset;
+            if (currentOffset != lastDisplayedWasOffset)
+            {
+                lastWasOffsetDelta = currentOffset - lastDisplayedWasOffset;
+                lastDisplayedWasOffset = currentOffset;
+                wasOffsetHighlightUntilUtc = DateTime.UtcNow.AddSeconds(5);
+            }
+
+            bool isHighlighted = DateTime.UtcNow < wasOffsetHighlightUntilUtc;
+            lblWasZeroStatus.BackColor = isHighlighted
+                ? Color.FromArgb(80, 210, 90)
+                : Color.FromArgb(255, 232, 80);
+
+            string deltaText = isHighlighted && lastWasOffsetDelta != 0
+                ? "\r\n" + FormatWasDeltaDegrees(lastWasOffsetDelta)
+                : string.Empty;
+
+            lblWasZeroStatus.Text = "WAS 0\r\n" + FormatWasOffsetDegrees(currentOffset) + deltaText;
+            PositionWasZeroStatusLabel();
+            panelWasZeroStatus?.BringToFront();
+        }
+
+        private void PositionWasZeroStatusLabel()
+        {
+            if (panelWasZeroStatus == null || btnStartAgIO == null) return;
+
+            Point agioLocation = PointToClient(btnStartAgIO.PointToScreen(Point.Empty));
+            panelWasZeroStatus.Width = btnStartAgIO.Width;
+            panelWasZeroStatus.Left = Math.Max(0, agioLocation.X);
+            panelWasZeroStatus.Top = Math.Min(
+                ClientSize.Height - panelWasZeroStatus.Height - 4,
+                agioLocation.Y + btnStartAgIO.Height + 2);
+            panelWasZeroStatus.BringToFront();
+        }
+
+        private static string FormatWasOffsetDegrees(int offsetCounts)
+        {
+            double countsPerDegree = Math.Max(1.0, Properties.VehicleSettings.Default.setAS_countsPerDegree);
+            return (offsetCounts / countsPerDegree).ToString("N2") + "°";
+        }
+
+        private static string FormatWasDeltaDegrees(int deltaCounts)
+        {
+            double countsPerDegree = Math.Max(1.0, Properties.VehicleSettings.Default.setAS_countsPerDegree);
+            double deltaDegrees = deltaCounts / countsPerDegree;
+            return deltaDegrees.ToString("+0.00;-0.00;0.00") + "°";
         }
 
         private void btnFieldsMap_Click(object sender, EventArgs e)
@@ -210,9 +297,10 @@ namespace AgOpenGPS
 
         private void btnFixRoll_Click(object sender, EventArgs e)
         {
-            if (!AutoRollLearnHasSuggestion || AutoRollLearnConfidence < 75.0)
+            if (!AutoRollLearnHasSuggestion || AutoRollLearnConfidence < AutoRollLearnRequiredConfidence)
             {
-                TimedMessageBox(2500, "Fix roll", "Auto Roll Learn confidence is below 75%");
+                TimedMessageBox(2500, "Fix roll", "Auto Roll Learn confidence is below "
+                    + AutoRollLearnRequiredConfidence.ToString("N0") + "%");
                 UpdateFixRollButtonVisibility();
                 return;
             }
