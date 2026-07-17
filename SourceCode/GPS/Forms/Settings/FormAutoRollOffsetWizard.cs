@@ -38,6 +38,21 @@ namespace AgOpenGPS
         private int[] originalRpSectionPosition;
         private int[] originalRpSectionWidth;
 
+        private bool didApplyCalibrationTool;
+        private bool originalToolIsSectionsNotZones;
+        private int originalToolNumOfSections;
+        private int originalToolRpWidth;
+        private double originalToolWidth;
+        private double originalToolHalfWidth;
+        private double originalToolContourWidth;
+        private double originalToolOverlap;
+        private double originalToolOffset;
+        private double[] calibrationOriginalSectionLeft;
+        private double[] calibrationOriginalSectionRight;
+        private double[] calibrationOriginalSectionWidth;
+        private int[] calibrationOriginalRpSectionPosition;
+        private int[] calibrationOriginalRpSectionWidth;
+
         private double forwardPassOffsetSum;
         private double reversePassOffsetSum;
         private double lastForwardPassOffset;
@@ -74,6 +89,7 @@ namespace AgOpenGPS
             baseRollZero = Properties.VehicleSettings.Default.setIMU_rollZero;
 
             InitializeComponent();
+            ApplyAutoRollCalibrationTool();
             ResetMeasurements();
             UpdateLabels();
             UpdateAutoSteerButton();
@@ -324,6 +340,7 @@ namespace AgOpenGPS
         {
             if (mf == null) return;
 
+            ApplyAutoRollCalibrationTool();
             RemoveTemporaryTrack();
             ResetMeasurements();
 
@@ -480,6 +497,7 @@ namespace AgOpenGPS
 
         private void EnableRightHalfCoveragePainting()
         {
+            ApplyAutoRollCalibrationTool();
             if (mf.tool.numOfSections <= 0) return;
 
             CaptureAppliedAreaSnapshot();
@@ -616,6 +634,85 @@ namespace AgOpenGPS
 
             areSectionPositionsClamped = false;
             CalculateGpsOnlySectionLookAhead();
+        }
+
+        private void ApplyAutoRollCalibrationTool()
+        {
+            if (mf == null || didApplyCalibrationTool) return;
+
+            originalToolIsSectionsNotZones = mf.tool.isSectionsNotZones;
+            originalToolNumOfSections = mf.tool.numOfSections;
+            originalToolRpWidth = mf.tool.rpWidth;
+            originalToolWidth = mf.tool.width;
+            originalToolHalfWidth = mf.tool.halfWidth;
+            originalToolContourWidth = mf.tool.contourWidth;
+            originalToolOverlap = mf.tool.overlap;
+            originalToolOffset = mf.tool.offset;
+
+            int count = Math.Max(1, originalToolNumOfSections);
+            calibrationOriginalSectionLeft = new double[count];
+            calibrationOriginalSectionRight = new double[count];
+            calibrationOriginalSectionWidth = new double[count];
+            calibrationOriginalRpSectionPosition = new int[count];
+            calibrationOriginalRpSectionWidth = new int[count];
+
+            for (int j = 0; j < count && j < mf.section.Length; j++)
+            {
+                calibrationOriginalSectionLeft[j] = mf.section[j].positionLeft;
+                calibrationOriginalSectionRight[j] = mf.section[j].positionRight;
+                calibrationOriginalSectionWidth[j] = mf.section[j].sectionWidth;
+                calibrationOriginalRpSectionPosition[j] = mf.section[j].rpSectionPosition;
+                calibrationOriginalRpSectionWidth[j] = mf.section[j].rpSectionWidth;
+            }
+
+            mf.tool.isSectionsNotZones = true;
+            mf.tool.numOfSections = 1;
+            mf.tool.width = 2.0;
+            mf.tool.halfWidth = 1.0;
+            mf.tool.contourWidth = 2.0 / 3.0;
+            mf.tool.overlap = 0.0;
+            mf.tool.offset = 0.0;
+            mf.tool.rpWidth = 20;
+
+            mf.section[0].positionLeft = -1.0;
+            mf.section[0].positionRight = 1.0;
+            mf.section[0].sectionWidth = 2.0;
+            mf.section[0].rpSectionPosition = 240;
+            mf.section[0].rpSectionWidth = 20;
+
+            didApplyCalibrationTool = true;
+            CalculateGpsOnlySectionLookAhead();
+            mf.oglMain.Refresh();
+            Log.EventWriter("Auto Roll Offset Wizard set temporary tool to 1 section, 2.0 m width");
+        }
+
+        private void RestoreAutoRollCalibrationTool()
+        {
+            if (mf == null || !didApplyCalibrationTool) return;
+
+            mf.tool.isSectionsNotZones = originalToolIsSectionsNotZones;
+            mf.tool.numOfSections = originalToolNumOfSections;
+            mf.tool.rpWidth = originalToolRpWidth;
+            mf.tool.width = originalToolWidth;
+            mf.tool.halfWidth = originalToolHalfWidth;
+            mf.tool.contourWidth = originalToolContourWidth;
+            mf.tool.overlap = originalToolOverlap;
+            mf.tool.offset = originalToolOffset;
+
+            int count = calibrationOriginalSectionLeft == null ? 0 : calibrationOriginalSectionLeft.Length;
+            for (int j = 0; j < count && j < mf.section.Length; j++)
+            {
+                mf.section[j].positionLeft = calibrationOriginalSectionLeft[j];
+                mf.section[j].positionRight = calibrationOriginalSectionRight[j];
+                mf.section[j].sectionWidth = calibrationOriginalSectionWidth[j];
+                mf.section[j].rpSectionPosition = calibrationOriginalRpSectionPosition[j];
+                mf.section[j].rpSectionWidth = calibrationOriginalRpSectionWidth[j];
+            }
+
+            didApplyCalibrationTool = false;
+            CalculateGpsOnlySectionLookAhead();
+            mf.oglMain.Refresh();
+            Log.EventWriter("Auto Roll Offset Wizard restored original tool settings");
         }
 
         private void SetRightHalfSectionStates(bool isOn)
@@ -999,6 +1096,7 @@ namespace AgOpenGPS
                 DisableCoveragePaintingIfWizardStartedIt();
                 RestoreAppliedAreaSnapshot();
                 RestoreSectionPositions();
+                RestoreAutoRollCalibrationTool();
             }
         }
 
